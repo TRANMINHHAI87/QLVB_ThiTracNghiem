@@ -27,7 +27,7 @@
     font-size:15px; line-height:1.5; -webkit-text-size-adjust:100%;
     -webkit-tap-highlight-color:transparent;
   }
-  .app{max-width:720px; margin:0 auto; min-height:100vh; padding-bottom:96px}
+  .app{max-width:720px; margin:0 auto; min-height:100vh; padding-bottom:96px; overflow-x:hidden}
 
   /* Topbar */
   .topbar{
@@ -248,7 +248,7 @@
   .bank-main{ flex:1; min-width:0; }
   .bank-name{ margin:0; font-size:15px; font-weight:700; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .bank-meta{ font-size:12px; color:var(--ink-3); margin-top:2px; font-family:var(--mono); }
-  .bank-acts{ display:flex; gap:6px; flex-shrink:0; }
+  .bank-acts{ display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; }
 
   /* ---- Exam config ---- */
   .exam-config{ background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); }
@@ -296,7 +296,7 @@
   .score-max{ font-size:18px; color:var(--ink-3); font-weight:700; }
   .score-sub{ margin-top:8px; font-size:14px; color:var(--ink); font-weight:600; }
   .score-time{ margin-top:4px; font-size:12.5px; color:var(--ink-3); font-family:var(--mono); }
-  .result-acts{ display:flex; gap:8px; margin-top:16px; }
+  .result-acts{ display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; }
   .result-acts .btn{ flex:1; }
   .rev-h{ font-size:14px; font-weight:700; color:var(--ink-2); margin:18px 2px 10px; }
   .rev-q{ background:var(--card); border:1px solid var(--line); border-left-width:4px; border-radius:var(--radius); padding:12px 14px; margin-bottom:10px; box-shadow:var(--shadow); }
@@ -1560,7 +1560,7 @@
         <div class="score-sub">Đúng ${correct}/${total} câu · ${esc(exam.sourceName)}</div>
         <div class="score-time">${exam.mode==='practice'?'Ôn tập':'Thi'} · ${mm} phút ${String(ss).padStart(2,'0')} giây${unans?` · ${unans} câu chưa trả lời`:''}</div>
         <div class="result-acts">
-          <button class="btn btn-primary" id="againExam">${exam.mode==='practice'?'Ôn lại (xáo mới)':'Thi đề mới (lặp 30%)'}</button>
+          <button class="btn btn-primary" id="againExam">${exam.mode==='practice'?'Ôn lại':'Thi đề mới'}</button>
           <button class="btn btn-ghost" id="backConfig">Về cấu hình</button>
         </div>
       </div>
