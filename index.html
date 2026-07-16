@@ -27,7 +27,7 @@
     font-size:15px; line-height:1.5; -webkit-text-size-adjust:100%;
     -webkit-tap-highlight-color:transparent;
   }
-  .app{max-width:720px; margin:0 auto; min-height:100vh; padding-bottom:96px; overflow-x:hidden}
+  .app{max-width:720px; margin:0 auto; min-height:100vh; padding-bottom:96px; overflow-x:clip}
 
   /* Topbar */
   .topbar{
@@ -121,7 +121,7 @@
   }
   .link{background:none; border:0; color:var(--brand-700); font:inherit; font-weight:600; cursor:pointer; padding:4px}
   .doc{
-    display:flex; align-items:flex-start; gap:11px; background:var(--card);
+    display:flex; flex-wrap:wrap; align-items:flex-start; gap:11px; background:var(--card);
     border:1px solid var(--line); border-radius:var(--radius); padding:12px; margin-bottom:9px;
     box-shadow:var(--shadow);
   }
@@ -134,7 +134,7 @@
   .doc-meta{font-family:var(--mono); font-size:11.5px; color:var(--ink-3); margin-top:3px}
   .doc-tags{display:flex; flex-wrap:wrap; gap:5px; margin-top:6px}
   .tag{font-size:11px; background:var(--brand-tint); color:var(--brand-700); padding:2px 8px; border-radius:999px; font-weight:600}
-  .doc-actions{display:flex; flex-wrap:wrap; gap:7px; margin-top:10px}
+  .doc-actions{display:flex; flex-wrap:wrap; gap:7px; width:100%; padding-left:31px; margin-top:-1px}
 
   /* Selection bar */
   .selbar{
@@ -403,6 +403,66 @@
   .fs-info{ flex:1; min-width:0; }
   .fs-name{ font-size:13px; font-weight:600; color:var(--ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .fs-note{ font-size:11px; color:var(--ink-3); margin-top:1px; }
+  /* ================= DESKTOP LAYOUT (điện thoại không ảnh hưởng) ================= */
+  @media (min-width:820px){
+    /* Thẻ văn bản: nút nằm ngang hàng với tên */
+    .doc{ flex-wrap:nowrap; align-items:center; padding:12px 14px; }
+    .doc-actions{ width:auto; padding-left:0; margin-top:0; flex:none; flex-wrap:nowrap; }
+    .doc-name{ font-size:15px; }
+
+    /* Hàng nút công cụ xếp cạnh nhau thay vì full-width */
+    #tab-docs .toolbar,
+    #sub-bank .toolbar{ display:grid; grid-template-columns:1fr 1fr; gap:9px; align-items:start; }
+    #tab-docs .toolbar > .folder-status,
+    #tab-docs .toolbar > .hint,
+    #tab-docs .toolbar > .search,
+    #sub-bank .toolbar > .hint{ grid-column:1/-1; margin:0; }
+    #sub-search .toolbar{ display:grid; grid-template-columns:300px 1fr; gap:9px; align-items:center; }
+    #sub-photo .toolbar{ display:grid; grid-template-columns:1fr 300px; gap:9px; align-items:center; }
+    #sub-photo .toolbar > .hint{ grid-column:1/-1; margin:0; }
+
+    .map-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  }
+
+  @media (min-width:1000px){
+    /* Dùng hết bề ngang màn hình PC */
+    .app{ max-width:1280px; padding-bottom:110px; }
+    main{ padding:18px 22px; }
+    .topbar{ padding:calc(env(safe-area-inset-top) + 16px) 22px 10px; }
+    .selbar-inner{ max-width:1280px; }
+
+    /* Tra cứu & Ảnh: 2 cột thẻ câu hỏi */
+    #quizList, #ocrResults{ display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start; }
+    #quizList > .q-card, #ocrResults > .q-card{ margin-bottom:0; }
+    #quizList > .empty, #quizList > .hint,
+    #ocrResults > .empty, #ocrResults > .ocr-reshead{ grid-column:1/-1; }
+
+    /* Ngân hàng: danh sách câu 2 cột */
+    .mng-list{ display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:start; }
+    .mng-list > .empty, .mng-list > .hint{ grid-column:1/-1; }
+
+    /* Cấu hình thi & màn ôn tập: giữ bề ngang dễ đọc, canh giữa */
+    .ea-config, .ea-practice{ max-width:900px; margin:0 auto; }
+    .ea-config .ex-facts{ grid-template-columns:repeat(4,1fr); }
+    .ea-config .subj-check{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+
+    /* Làm bài thi: 2 cột câu hỏi cho đỡ cuộn */
+    .ea-exam .exam-scroll{ display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start; }
+    .ea-exam .exam-q{ margin-bottom:0; }
+    .ea-exam .exam-foot{ grid-column:1/-1; max-width:420px; margin-left:auto; margin-right:auto; }
+
+    /* Kết quả: thẻ điểm canh giữa, phần xem lại 2 cột */
+    .ea-result .result-card{ max-width:900px; margin:0 auto; }
+    .ea-result .rev-list{ display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start; }
+    .ea-result .rev-q{ margin-bottom:0; }
+  }
+
+  @media (min-width:1400px){
+    .app{ max-width:1400px; }
+    .selbar-inner{ max-width:1400px; }
+    #quizList, #ocrResults, .ea-result .rev-list{ grid-template-columns:1fr 1fr 1fr; }
+    .mng-list{ grid-template-columns:1fr 1fr 1fr; }
+  }
 </style>
 </head>
 <body>
@@ -603,6 +663,8 @@
   const fmtSize=b=> b<1024?b+' B':(b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(1)+' MB');
   const fileExt=name=>{ const m=/\.([a-z0-9]+)$/i.exec(name||''); return m? m[1].toUpperCase() : 'FILE'; };
   const fmtDate=ts=>{const d=new Date(ts),p=n=>String(n).padStart(2,'0');return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()}`;};
+  // Ngày của file gốc (trình duyệt chỉ cho biết ngày sửa cuối); file cũ chưa lưu thì lấy từ blob, cuối cùng mới dùng ngày nhập
+  const docDate=f=> f.mtime || (f.blob && f.blob.lastModified) || f.addedAt;
   let toastT;
   function toast(msg){ const t=$('#toast'); t.textContent=msg; t.hidden=false; clearTimeout(toastT); toastT=setTimeout(()=>t.hidden=true,2600); }
   function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('load fail')); document.head.appendChild(s); }); }
@@ -665,7 +727,7 @@
       const key=f.name+'\u0000'+f.size;
       if(seen.has(key)) continue;
       seen.add(key);
-      recs.push({ name:f.name, size:f.size, type:f.type||'', addedAt:Date.now(), blob:f });
+      recs.push({ name:f.name, size:f.size, type:f.type||'', mtime:f.lastModified||0, addedAt:Date.now(), blob:f });
     }
     const dup=arr.length-recs.length;
     if(recs.length) await fileAddMany(recs);   // ghi tất cả trong 1 giao dịch
@@ -836,13 +898,13 @@
         <input type="checkbox" data-sel="${f.id}" ${selected.has(f.id)?'checked':''} aria-label="Chọn ${esc(f.name)}">
         <div class="doc-main">
           <div class="doc-name"><svg class="doc-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span>${esc(f.name)}</span></div>
-          <div class="doc-meta">${fileExt(f.name)} · ${fmtSize(f.size)} · ${fmtDate(f.addedAt)}</div>
+          <div class="doc-meta">${fileExt(f.name)} · ${fmtSize(f.size)} · ${fmtDate(docDate(f))}</div>
           ${tags}
-          <div class="doc-actions">
-            <button class="btn btn-sm btn-primary" data-open="${f.id}">Mở</button>
-            <button class="btn btn-sm" data-unlist="${f.id}">Xóa khỏi list</button>
-            <button class="btn btn-sm btn-danger" data-purge="${f.id}">Xóa khỏi máy</button>
-          </div>
+        </div>
+        <div class="doc-actions">
+          <button class="btn btn-sm btn-primary" data-open="${f.id}">Mở</button>
+          <button class="btn btn-sm" data-unlist="${f.id}">Xóa khỏi list</button>
+          <button class="btn btn-sm btn-danger" data-purge="${f.id}">Xóa khỏi máy</button>
         </div>
       </div>`;
     }).join('');
@@ -1420,6 +1482,7 @@
 
   async function renderExam(){
     const area=$('#examArea');
+    area.className='ea-config';
     if(!subjects.length){ area.innerHTML=`<div class="empty"><h3>Chưa có câu hỏi để thi</h3><p>Vào mục <b>Ngân hàng</b> tải câu hỏi theo môn trước đã.</p></div>`; return; }
     if(exam && !exam.submitted){ if(exam.mode==='practice') renderPracticeTaking(); else renderExamTaking(); return; }
     if(exam && exam.submitted){ renderExamResult(); return; }
@@ -1481,6 +1544,7 @@
   }
   function renderExamTaking(){
     const area=$('#examArea');
+    area.className='ea-exam';
     const qs=exam.questions;
     area.innerHTML=`
       <div class="exam-bar">
@@ -1510,6 +1574,7 @@
 
   function renderPracticeTaking(){
     const area=$('#examArea'), letters=['A','B','C','D','E','F'];
+    area.className='ea-practice';
     const qs=exam.questions, i=exam.idx, q=qs[i], answered=exam.answers[i]!=null;
     const sel=exam.answers[i];
     const reveal = exam.instant && answered;
@@ -1551,6 +1616,7 @@
 
   function renderExamResult(){
     const area=$('#examArea'), letters=['A','B','C','D','E','F'];
+    area.className='ea-result';
     const qs=exam.questions, correct=scoreExam(), total=qs.length, score=Math.round(correct/total*100);
     const unans=qs.filter((_,k)=> exam.answers[k]==null).length;
     const elapsed=Math.max(0, Date.now()-exam.startedAt), mm=Math.floor(elapsed/60000), ss=Math.floor((elapsed%60000)/1000);
