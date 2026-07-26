@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <meta name="color-scheme" content="light"/>
-<title>Văn bản & Trắc nghiệm</title>
+<title>Văn bản & Trắc nghiệm — Online</title>
 <style>
   :root{
     --paper:#F4F6F8; --card:#FFFFFF;
@@ -463,6 +463,11 @@
     #quizList, #ocrResults, .ea-result .rev-list{ grid-template-columns:1fr 1fr 1fr; }
     .mng-list{ grid-template-columns:1fr 1fr 1fr; }
   }
+  /* ---- Version badge & online subject tag ---- */
+  .ver-badge{ font-size:10.5px; font-weight:800; padding:2px 7px; border-radius:20px; vertical-align:middle; margin-left:5px; letter-spacing:.02em; }
+  .ver-badge.on{ color:#0E5C2C; background:var(--green-tint); }
+  .ver-badge.off{ color:var(--brand-700); background:var(--brand-tint); }
+  .badge-on{ font-size:10px; font-weight:800; color:#0E5C2C; background:var(--green-tint); padding:2px 7px; border-radius:20px; margin-left:7px; vertical-align:middle; }
 </style>
 </head>
 <body>
@@ -471,7 +476,7 @@
     <div class="brand">
       <span class="mark" aria-hidden="true"></span>
       <div class="brand-txt">
-        <strong>Văn bản &amp; Trắc nghiệm</strong>
+        <strong>Văn bản &amp; Trắc nghiệm <span id="verBadge" class="ver-badge"></span></strong>
         <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại</span>
       </div>
     </div>
@@ -553,8 +558,17 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 7l4-4 4 4M4 21h16"/></svg>
             Tải câu hỏi (chọn môn sau)
           </button>
-          <input id="quizInput" type="file" accept=".xlsx,.xls,.csv,.pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,application/pdf" hidden>
-          <p class="hint">Nên tạo môn trước (VD: Kế Toán, KHCN, Tổng hợp) rồi nạp câu vào đúng môn. Cột tối thiểu: STT, câu hỏi, đáp án 1–4, đáp án đúng. Khuyến nghị .xlsx/.csv.</p>
+          <input id="quizInput" type="file" accept=".xlsx,.xls,.csv,.pdf,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,application/pdf,application/json" hidden>
+          <button class="btn btn-block" id="btnSyncOnline">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7.6-4.2M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7.6 4.2"/><path d="M20 4v4h-4M4 20v-4h4"/></svg>
+            Tải lại dữ liệu online
+          </button>
+          <button class="btn btn-block" id="btnExportJSON" hidden>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9M8 17l4 4 4-4M4 3h16"/></svg>
+            Xuất JSON cho GitHub Pages
+          </button>
+          <div id="onlineStatus" class="folder-status" hidden></div>
+          <p class="hint" id="bankHint">Nên tạo môn trước (VD: Kế Toán, KHCN, Tổng hợp) rồi nạp câu vào đúng môn. Cột tối thiểu: STT, câu hỏi, đáp án 1–4, đáp án đúng. Khuyến nghị .xlsx/.csv. Có thể nạp thẳng file <b>.json</b> đã xuất trước đó.</p>
         </div>
         <div id="mapBox" class="mapbox" hidden></div>
         <div id="bankList"></div>
@@ -597,6 +611,13 @@
 <script>
 "use strict";
 (function(){
+  /* ============ CẤU HÌNH PHIÊN BẢN ============
+     APP_MODE = 'online'  -> bản chạy trên GitHub Pages: tự đọc cauhoi.json cùng thư mục
+     APP_MODE = 'offline' -> bản dùng ở máy: mọi thứ như trên + XUẤT cauhoi.json để đẩy lên Pages */
+  const APP_MODE='online';
+  const CAN_EXPORT = (APP_MODE==='offline');
+  const REMOTE_FILES=['cauhoi.json','data/cauhoi.json','questions.json'];
+
   const $ = s => document.querySelector(s);
   const esc = s => (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const noAccent = s => (s==null?'':String(s)).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/\s+/g,' ').trim();
@@ -1058,6 +1079,7 @@
   $('#quizInput').addEventListener('change', async e=>{
     const file=e.target.files[0]; e.target.value=''; if(!file) return;
     const name=file.name.toLowerCase();
+    if(name.endsWith('.json')){ await importJSONFile(file); return; }
     try{
       let matrix;
       if(name.endsWith('.csv')) matrix=await parseCSVFile(file);
@@ -1066,10 +1088,22 @@
       else { toast('Định dạng chưa hỗ trợ. Dùng .xlsx, .csv hoặc .pdf.'); return; }
       matrix=(matrix||[]).filter(r=> r.some(c=> String(c).trim()!==''));
       if(!matrix.length){ toast('Không đọc được dữ liệu trong file.'); return; }
-      const headerRow=true;
+      const trim=trimToHeader(matrix);
+      matrix=trim.matrix;
+      let headerRow=true;
+      if(!trim.headerFound){   // không thấy tiêu đề: nếu dòng đầu giống dữ liệu thật thì đừng ăn mất nó
+        const r0=matrix[0]||[];
+        const firstInt=/^\d+$/.test(String(r0[0]||'').trim());
+        const hasLong=r0.some(c=> String(c||'').trim().length>25);
+        if(firstInt && hasLong) headerRow=false;
+      }
       pending={filename:file.name, matrix, headerRow, mapping:autoDetect(headersOf(matrix,headerRow))};
       renderMapping(); $('#mapBox').hidden=false; $('#mapBox').scrollIntoView({behavior:'smooth',block:'nearest'});
-      if(name.endsWith('.pdf')) toast(`Đọc PDF (thử nghiệm): tách được ${matrix.length} dòng. Kiểm tra phần gán cột.`);
+      const notes=[];
+      if(trim.trimmed) notes.push(`bỏ ${trim.trimmed} dòng phía trên tiêu đề`);
+      if(trim.repeats) notes.push(`bỏ ${trim.repeats} tiêu đề lặp`);
+      if(name.endsWith('.pdf')) notes.push(`PDF: tách được ${Math.max(0,matrix.length-(headerRow?1:0))} dòng — kiểm tra phần gán cột`);
+      if(notes.length) toast('Đã tự '+notes.join(', ')+'.');
     }catch(err){ toast('Lỗi đọc file: '+(err&&err.message?err.message:'không xác định')+'. Thử .xlsx/.csv.'); }
   });
 
@@ -1098,9 +1132,13 @@
     if(typeof XLSX==='undefined') await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
     const buf=await file.arrayBuffer();
     const wb=XLSX.read(buf,{type:'array'});
-    const ws=wb.Sheets[wb.SheetNames[0]];
-    const arr=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
-    return arr.map(r=> r.map(c=> c==null?'':String(c)));
+    let best=null, bestRows=-1;                     // chọn sheet nhiều dữ liệu nhất
+    for(const name of wb.SheetNames){
+      const arr=XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:'',raw:false});
+      const rows=arr.filter(r=> r.some(c=> String(c==null?'':c).trim()!=='')).length;
+      if(rows>bestRows){ bestRows=rows; best=arr; }
+    }
+    return (best||[]).map(r=> r.map(c=> c==null?'':String(c)));
   }
   let pdfReady=false;
   async function ensurePdfjs(){
@@ -1113,15 +1151,101 @@
     await ensurePdfjs();
     const buf=await file.arrayBuffer();
     const pdf=await window.pdfjsLib.getDocument({data:buf}).promise;
-    const lines=[];
+    const pages=[];
     for(let p=1;p<=pdf.numPages;p++){
       const page=await pdf.getPage(p);
       const tc=await page.getTextContent();
-      const map=new Map();
-      tc.items.forEach(it=>{ const y=Math.round(it.transform[5]); if(!map.has(y)) map.set(y,[]); map.get(y).push({x:it.transform[4],s:it.str}); });
-      [...map.keys()].sort((a,b)=>b-a).forEach(y=>{ const row=map.get(y).sort((a,b)=>a.x-b.x).map(o=>o.s).join(' ').replace(/\s+/g,' ').trim(); if(row) lines.push(row); });
+      const items=tc.items.filter(it=> it.str && it.str.trim()!=='')
+        .map(it=>({x:it.transform[4], y:it.transform[5], w:it.width||0, s:it.str}));
+      pages.push(items);
     }
-    return pdfHeuristic(lines);
+    // Chiến lược 1: PDF là BẢNG (xuất từ Excel) -> dựng lại cột
+    const table=pdfTableExtract(pages);
+    const tableQ=table? countLikelyQuestions(table) : 0;
+    // Chiến lược 2: PDF dạng chữ "Câu 1: ... A. ... B. ..."
+    const heur=pdfHeuristic(pdfLines(pages));
+    const heurQ=heur.slice(1).filter(r=> [r[2],r[3],r[4],r[5]].filter(x=>x).length>=2).length;
+    if(table && tableQ>=3 && tableQ>=heurQ) return table;
+    return heur;
+  }
+  function countLikelyQuestions(matrix){
+    let n=0;
+    for(const r of matrix){
+      const long=r.filter(c=> String(c).trim().length>=15).length;   // có ô dài (câu hỏi)
+      const filled=r.filter(c=> String(c).trim()!=='').length;        // đủ ô dữ liệu (đáp án ngắn vẫn tính)
+      if(long>=1 && filled>=4) n++;
+    }
+    return n;
+  }
+  function pdfRowsOf(items){
+    const sorted=items.slice().sort((a,b)=> b.y-a.y || a.x-b.x);
+    const rows=[]; const TOL=3.5;                 // gom dòng có dung sai (chữ lệch nửa pixel vẫn cùng dòng)
+    for(const it of sorted){
+      const row=rows.find(r=> Math.abs(r.y-it.y)<=TOL);
+      if(row) row.items.push(it); else rows.push({y:it.y, items:[it]});
+    }
+    rows.forEach(r=> r.items.sort((a,b)=>a.x-b.x));
+    return rows;
+  }
+  function pdfCellsOf(row){
+    const cells=[]; const GAP=10;                 // khoảng trống lớn = sang ô khác
+    for(const it of row.items){
+      const last=cells[cells.length-1];
+      const w=it.w||it.s.length*4;
+      if(last && it.x-last.xe<=GAP){ last.s+=' '+it.s; last.xe=Math.max(last.xe,it.x+w); }
+      else cells.push({x:it.x, xe:it.x+w, s:it.s});
+    }
+    cells.forEach(c=> c.s=c.s.replace(/\s+/g,' ').trim());
+    return cells;
+  }
+  function pdfTableExtract(pages){
+    const allRows=[];
+    for(const items of pages){ for(const r of pdfRowsOf(items)) allRows.push(pdfCellsOf(r)); }
+    if(!allRows.length) return null;
+    // Dò vị trí cột: gom các mép trái ô hay lặp lại
+    const xs=[]; allRows.forEach(cells=> cells.forEach(c=> xs.push(c.x)));
+    xs.sort((a,b)=>a-b);
+    const cols=[]; const CTOL=18;
+    for(const x of xs){
+      const col=cols.find(c=> Math.abs(c.x-x)<=CTOL);
+      if(col){ col.x=(col.x*col.n+x)/(col.n+1); col.n++; } else cols.push({x, n:1});
+    }
+    const strong=cols.filter(c=> c.n>=Math.max(4, allRows.length*0.15)).sort((a,b)=>a.x-b.x);
+    if(strong.length<4) return null;              // không giống bảng -> để chiến lược 2 lo
+    const rawRows=allRows.map(cells=>{
+      const arr=Array(strong.length).fill('');
+      cells.forEach(c=>{ let i=0,bd=1e9; strong.forEach((cc,k)=>{ const d=Math.abs(cc.x-c.x); if(d<bd){bd=d;i=k;} });
+        arr[i]=arr[i]? arr[i]+' '+c.s : c.s; });
+      return arr;
+    }).filter(r=> r.some(c=>c));
+    // Tìm cột STT (cột mà đa số giá trị là số nguyên)
+    let sttCol=-1, bestScore=0;
+    for(let i=0;i<strong.length;i++){
+      let ints=0, non=0;
+      rawRows.forEach(r=>{ const v=(r[i]||'').trim(); if(v){ non++; if(/^\d{1,4}$/.test(v)) ints++; } });
+      const sc=non? ints/non : 0;
+      if(sc>bestScore){ bestScore=sc; sttCol=i; }
+    }
+    if(bestScore<0.5) sttCol=-1;
+    // Ghép các dòng nối tiếp (ô nhiều dòng) vào bản ghi phía trên
+    const merged=[];
+    for(const r of rawRows){
+      const isNew = sttCol>=0 ? /^\d{1,4}$/.test((r[sttCol]||'').trim()) : r.filter(c=>c).length>=3;
+      const isHeaderish = r.some(c=> /cau hoi|dap an|phuong an/.test(noAccent(c)));
+      if(isNew || isHeaderish || !merged.length) merged.push(r.slice());
+      else { const t=merged[merged.length-1]; r.forEach((c,i)=>{ if(c) t[i]=t[i]? t[i]+' '+c : c; }); }
+    }
+    return merged;
+  }
+  function pdfLines(pages){
+    const lines=[];
+    for(const items of pages){
+      for(const r of pdfRowsOf(items)){
+        const t=r.items.map(o=>o.s).join(' ').replace(/\s+/g,' ').trim();
+        if(t) lines.push(t);
+      }
+    }
+    return lines;
   }
   function pdfHeuristic(lines){
     const text=lines.join('\n');
@@ -1130,10 +1254,10 @@
     for(const part of parts){
       const mQ=part.match(/^\s*(?:câu|cau)?\s*(\d+)\s*[\.\):\-]\s*/i); if(!mQ) continue;
       let rest=part.slice(mQ[0].length); const stt=mQ[1]; let correct='';
-      const mC=rest.match(/đáp\s*án\s*(?:đúng)?\s*[:\-]?\s*([A-Da-d1-4])\b/i);
+      const mC=rest.match(/(?:đáp|dap|đá|da)\s*(?:án|an)\s*(?:đúng|dung)?\s*[:\-\.]?\s*([A-Da-d1-4])(?![0-9A-Za-zÀ-ỹ])/i);
       if(mC){ correct=mC[1].toUpperCase(); rest=rest.slice(0,mC.index)+rest.slice(mC.index+mC[0].length); }
       const opts=['','','',''];
-      const re=/(?:^|[\n\s])([A-Da-d])\s*[\.\)]\s*/g; let m; const marks=[];
+      const re=/(?:^|[\n\s])([A-Da-d])\s*[\.\):]\s*/g; let m; const marks=[];
       while((m=re.exec(rest))){ marks.push({l:m[1].toUpperCase(), s:m.index+m[0].length, ms:m.index}); }
       let q=rest;
       if(marks.length){ q=rest.slice(0,marks[0].ms);
@@ -1142,6 +1266,29 @@
       rows.push([stt,q.replace(/\s+/g,' ').trim(),opts[0],opts[1],opts[2],opts[3],correct]);
     }
     return rows;
+  }
+
+  /* --- Tìm dòng tiêu đề thật (STT | Câu hỏi | Đáp án...) và bỏ rác phía trên --- */
+  function trimToHeader(matrix){
+    const score=row=>{
+      const cells=row.map(c=>noAccent(String(c||'')).trim());
+      let s=0;
+      if(cells.some(c=> c==='stt'||c==='tt'||c==='so tt'||c.startsWith('so thu tu'))) s+=2;
+      if(cells.some(c=> c.includes('cau hoi')||(c.includes('noi dung')&&!c.includes('dap')))) s+=2;
+      s+=Math.min(4, cells.filter(c=> c.includes('dap an')||c.includes('phuong an')||c.includes('lua chon')).length);
+      if(cells.some(c=> c.includes('dap an dung')||c.includes('ket qua')||c.includes('correct'))) s+=1;
+      return s;
+    };
+    let hIdx=-1;
+    const lim=Math.min(matrix.length, 40);
+    for(let r=0;r<lim;r++){ if(score(matrix[r])>=4){ hIdx=r; break; } }
+    if(hIdx<0){ for(let r=0;r<lim;r++){ if(score(matrix[r])>=3){ hIdx=r; break; } } }
+    if(hIdx<0) return {matrix, trimmed:0, repeats:0, headerFound:false};
+    const header=matrix[hIdx];
+    const hj=header.map(c=>noAccent(String(c||'')).trim()).join('|');
+    const rest=matrix.slice(hIdx+1);
+    const body=rest.filter(r=> r.map(c=>noAccent(String(c||'')).trim()).join('|')!==hj);   // bỏ tiêu đề lặp giữa file
+    return {matrix:[header,...body], trimmed:hIdx, repeats:rest.length-body.length, headerFound:true};
   }
 
   /* --- Column detection & mapping --- */
@@ -1188,7 +1335,7 @@
     for(let r=start;r<matrix.length;r++){
       const row=matrix[r]; const get=i=> (i>=0&&i<row.length)?String(row[i]==null?'':row[i]).trim():'';
       const question=get(m.q); const answers=[m.a1,m.a2,m.a3,m.a4].map(get);
-      if(!question && answers.every(a=>!a)) continue;
+      if(!question || answers.filter(a=>a).length<2) continue;   // phải có câu hỏi + ít nhất 2 đáp án (loại dòng tựa đề/rác)
       const stt = m.stt>=0? get(m.stt) : String(qs.length+1);
       const correct=[...resolveCorrect(get(m.correct),answers)];
       qs.push({stt,question,answers,correct});
@@ -1284,7 +1431,7 @@
     const total=subjects.reduce((s,x)=>s+x.questions.length,0);
     cont.innerHTML=`<div class="bank-sum">${subjects.length} môn · ${total} câu</div>`+subjects.map(s=>`
       <article class="bank-card">
-        <div class="bank-main"><h3 class="bank-name">${esc(s.name)}</h3><div class="bank-meta">${s.questions.length} câu</div></div>
+        <div class="bank-main"><h3 class="bank-name">${esc(s.name)}${s.origin==='remote'?'<span class="badge-on">online</span>':''}</h3><div class="bank-meta">${s.questions.length} câu</div></div>
         <div class="bank-acts">
           <button class="btn btn-sm btn-primary" data-act="up" data-id="${s.id}">Tải câu</button>
           <button class="btn btn-sm btn-ghost" data-act="mng" data-id="${s.id}">Sửa câu</button>
@@ -1772,6 +1919,150 @@
     }).join('');
   }
 
+  /* ================= JSON: đọc online (GitHub Pages) · nhập · xuất ================= */
+  let remoteInfo=null;
+
+  function normalizeQuestion(q){
+    if(!q || typeof q!=='object') return null;
+    const question=String(q.question ?? q.cauhoi ?? q.cau_hoi ?? q.noidung ?? '').trim();
+    let answers = q.answers ?? q.dapan ?? q.dap_an ?? q.options ?? [];
+    if(!Array.isArray(answers)) answers=[answers];
+    answers=answers.map(a=> String(a==null?'':a).trim());
+    while(answers.length && answers[answers.length-1]==='') answers.pop();
+    if(!question || answers.filter(a=>a).length<2) return null;
+    let raw = q.correct ?? q.dapandung ?? q.dap_an_dung ?? q.answer ?? q.key;
+    const set=new Set();
+    const arr = Array.isArray(raw) ? raw : (raw==null?[]:[raw]);
+    arr.forEach(v=>{
+      if(typeof v==='number' && Number.isFinite(v)){
+        // số: 0-based nếu có 0, còn lại coi là 1-based
+        const i = (arr.some(x=> x===0)) ? v : v-1;
+        if(i>=0 && i<answers.length) set.add(i);
+      } else {
+        [...resolveCorrect(String(v==null?'':v), answers)].forEach(i=> set.add(i));
+      }
+    });
+    const stt=String(q.stt ?? q.STT ?? q.no ?? '').trim();
+    const addedAt=Number(q.addedAt)||0;
+    return {stt, question, answers, correct:[...set].filter(i=>i>=0&&i<answers.length), addedAt: addedAt||Date.now()};
+  }
+  function parseQuizJSON(obj){
+    let list=[];
+    if(Array.isArray(obj)) list=obj;
+    else if(obj && Array.isArray(obj.subjects)) list=obj.subjects;
+    else if(obj && Array.isArray(obj.mon)) list=obj.mon;
+    else if(obj && (obj.questions||obj.cauhoi)) list=[obj];
+    else return [];
+    const out=[];
+    list.forEach((s,i)=>{
+      if(!s || typeof s!=='object') return;
+      const name=String(s.name ?? s.ten ?? s.subject ?? ('Môn '+(i+1))).trim() || ('Môn '+(i+1));
+      let qs = s.questions ?? s.cauhoi ?? s.items ?? [];
+      if(!Array.isArray(qs)) return;
+      const norm=qs.map(normalizeQuestion).filter(Boolean);
+      if(norm.length) out.push({name, questions:norm});
+    });
+    return out;
+  }
+  function subjectsToJSON(list){
+    return {
+      format:'vbtn-quiz', version:1, exportedAt:Date.now(),
+      subjects:list.map(s=>({
+        name:s.name,
+        questions:s.questions.map(q=>({ stt:q.stt||'', question:q.question, answers:q.answers, correct:q.correct, addedAt:q.addedAt||null }))
+      }))
+    };
+  }
+
+  async function syncRemote(manual){
+    let found=null, usedUrl='';
+    for(const name of REMOTE_FILES){
+      try{
+        const u=new URL(name, location.href).href;
+        const r=await fetch(u,{cache:'no-store'});
+        if(!r.ok) continue;
+        found=await r.json(); usedUrl=u; break;
+      }catch(_){}
+    }
+    if(!found){
+      if(manual){
+        toast(location.protocol==='file:'
+          ? 'Mở bằng file:// nên không đọc được cauhoi.json. Dùng nút “Tải câu hỏi” để nạp file JSON thủ công.'
+          : 'Không tìm thấy cauhoi.json cạnh trang này.');
+      }
+      renderOnlineStatus(); return false;
+    }
+    const parsed=parseQuizJSON(found);
+    if(!parsed.length){ if(manual) toast('File JSON không có câu hỏi hợp lệ.'); renderOnlineStatus(); return false; }
+    const total=parsed.reduce((a,s)=>a+s.questions.length,0);
+    const stamp=JSON.stringify({at:found.exportedAt||0, n:total, names:parsed.map(s=>s.name)});
+    const prev=await metaGet('remoteStamp');
+    if(!manual && prev && prev.value===stamp){
+      remoteInfo={url:usedUrl, subjects:parsed.length, total, at:found.exportedAt||0};
+      renderOnlineStatus(); return false;   // không đổi -> khỏi ghi lại
+    }
+    const all=await subjectsAll();
+    for(const s of all){ if(s.origin==='remote') await subjectDelete(s.id); }   // thay bộ dữ liệu online cũ
+    for(const s of parsed){ await subjectAdd({name:s.name, questions:s.questions, createdAt:Date.now(), origin:'remote'}); }
+    await metaSet('remoteStamp', stamp);
+    subjects=await subjectsAll();
+    remoteInfo={url:usedUrl, subjects:parsed.length, total, at:found.exportedAt||0};
+    toast(`Đã tải dữ liệu online: ${parsed.length} môn · ${total} câu.`);
+    renderOnlineStatus();
+    if(curSub==='bank') renderBank(); else if(curSub==='search') renderResults();
+    return true;
+  }
+
+  function renderOnlineStatus(){
+    const el=$('#onlineStatus'); if(!el) return;
+    if(remoteInfo){
+      el.hidden=false;
+      el.innerHTML=`<span class="fs-dot on"></span><div class="fs-info"><div class="fs-name">Dữ liệu online: ${remoteInfo.subjects} môn · ${remoteInfo.total} câu</div><div class="fs-note">${remoteInfo.at?('Xuất ngày '+fmtDate(remoteInfo.at)):'Đọc từ cauhoi.json'} · môn có nhãn “online”</div></div>`;
+    } else if(location.protocol==='file:'){
+      el.hidden=false;
+      el.innerHTML=`<span class="fs-dot"></span><div class="fs-info"><div class="fs-name">Chưa có dữ liệu online</div><div class="fs-note">Mở bằng file:// nên không đọc được cauhoi.json — nạp thủ công bằng “Tải câu hỏi”.</div></div>`;
+    } else { el.hidden=true; el.innerHTML=''; }
+  }
+
+  async function importJSONFile(file){
+    let obj;
+    try{ obj=JSON.parse(await readText(file)); }
+    catch(e){ toast('File JSON hỏng hoặc sai định dạng.'); return; }
+    const parsed=parseQuizJSON(obj);
+    if(!parsed.length){ toast('Không tìm thấy câu hỏi hợp lệ trong file JSON.'); return; }
+    let newSub=0, addedAll=0, dupAll=0;
+    for(const s of parsed){
+      let sub=subjects.find(x=> noAccent(x.name)===noAccent(s.name));
+      if(!sub){ const id=await subjectAdd({name:s.name, questions:[], createdAt:Date.now()}); subjects=await subjectsAll(); sub=subjects.find(x=>x.id===id); newSub++; }
+      const seen=new Set(sub.questions.map(qKey));
+      let added=0, dup=0;
+      s.questions.forEach(q=>{ const k=qKey(q); if(seen.has(k)){dup++;return;} seen.add(k); sub.questions.push(q); added++; });
+      await subjectPut(sub); addedAll+=added; dupAll+=dup;
+    }
+    subjects=await subjectsAll();
+    toast(`Đã nạp ${addedAll} câu${newSub?`, tạo ${newSub} môn mới`:''}${dupAll?`, bỏ ${dupAll} trùng`:''}.`);
+    renderBank();
+  }
+
+  async function exportJSON(){
+    const all=await subjectsAll();
+    const usable=all.filter(s=> s.questions && s.questions.length);
+    if(!usable.length){ toast('Chưa có môn nào có câu hỏi để xuất.'); return; }
+    const total=usable.reduce((a,s)=>a+s.questions.length,0);
+    const text=JSON.stringify(subjectsToJSON(usable));
+    const blob=new Blob([text],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download='cauhoi.json';
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    const kb=Math.round(blob.size/1024);
+    toast(`Đã xuất cauhoi.json — ${usable.length} môn · ${total} câu · ${kb} KB. Đẩy file này lên GitHub Pages cạnh file HTML.`);
+  }
+
+  $('#btnSyncOnline').addEventListener('click', ()=> syncRemote(true));
+  const expBtn=$('#btnExportJSON');
+  if(CAN_EXPORT){ expBtn.hidden=false; expBtn.addEventListener('click', ()=> exportJSON()); }
+
   /* ================= Tabs ================= */
   document.querySelectorAll('.tab').forEach(t=> t.onclick=()=>{
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('is-active'));
@@ -1807,6 +2098,10 @@
     renderResults();
     renderFolderStatus();
     autoSyncFolder();   // máy tính: tự thêm file mới từ thư mục đã liên kết
+    const vb=$('#verBadge');
+    if(vb){ vb.textContent = CAN_EXPORT? 'Offline' : 'Online'; vb.className='ver-badge '+(CAN_EXPORT?'off':'on'); }
+    renderOnlineStatus();
+    syncRemote(false);  // tự đọc cauhoi.json cạnh trang (GitHub Pages)
   })();
 })();
 </script>
