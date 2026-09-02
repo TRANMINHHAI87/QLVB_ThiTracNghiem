@@ -431,11 +431,8 @@
     .topbar{ padding:calc(env(safe-area-inset-top) + 16px) 22px 10px; }
     .selbar-inner{ max-width:1280px; }
 
-    /* Tra cứu & Ảnh: 2 cột thẻ câu hỏi */
-    #quizList, #ocrResults{ display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start; }
-    #quizList > .q-card, #ocrResults > .q-card{ margin-bottom:0; }
-    #quizList > .empty, #quizList > .hint,
-    #ocrResults > .empty, #ocrResults > .ocr-reshead{ grid-column:1/-1; }
+    /* Tra cứu & Ảnh: mỗi câu 1 hàng, dàn hết chiều ngang */
+    #quizList > .q-card, #ocrResults > .q-card{ max-width:none; }
 
     /* Ngân hàng: danh sách câu 2 cột */
     .mng-list{ display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:start; }
@@ -460,7 +457,7 @@
   @media (min-width:1400px){
     .app{ max-width:1400px; }
     .selbar-inner{ max-width:1400px; }
-    #quizList, #ocrResults, .ea-result .rev-list{ grid-template-columns:1fr 1fr 1fr; }
+    .ea-result .rev-list{ grid-template-columns:1fr 1fr 1fr; }
     .mng-list{ grid-template-columns:1fr 1fr 1fr; }
   }
   /* ---- Version badge & online subject tag ---- */
@@ -621,6 +618,17 @@
   const $ = s => document.querySelector(s);
   const esc = s => (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const noAccent = s => (s==null?'':String(s)).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/đ/g,'d').replace(/\s+/g,' ').trim();
+  // So sánh tên môn: có số ở đầu -> theo giá trị số (1,2,10); không số -> theo A,B,C (tiếng Việt)
+  const _viColl = (typeof Intl!=='undefined' && Intl.Collator) ? new Intl.Collator('vi',{numeric:true,sensitivity:'base'}) : null;
+  function subjectCmp(a,b){
+    const na=String(a&&a.name||''), nb=String(b&&b.name||'');
+    const ma=na.match(/^\s*(\d+)/), mb=nb.match(/^\s*(\d+)/);
+    if(ma&&mb){ const d=parseInt(ma[1],10)-parseInt(mb[1],10); if(d) return d; }
+    else if(ma&&!mb) return -1;          // môn có số đứng trước môn không số
+    else if(!ma&&mb) return 1;
+    if(_viColl) return _viColl.compare(na,nb);
+    return noAccent(na).localeCompare(noAccent(nb));
+  }
 
   /* ---------------- Storage (IndexedDB with in-memory fallback) ---------------- */
   const DB='vbtn_db', VER=2;
@@ -672,7 +680,7 @@
   async function categoryAdd(rec){ if(memMode){ const id=mem.seq.categories++; mem.categories.set(id,{...rec,id}); return id; } return await pReq(store('categories','readwrite').add(rec)); }
   async function categoryPut(rec){ if(memMode){ mem.categories.set(rec.id,rec); return; } await pReq(store('categories','readwrite').put(rec)); }
   async function categoryDelete(id){ if(memMode){ mem.categories.delete(id); return; } await pReq(store('categories','readwrite').delete(id)); }
-  async function subjectsAll(){ if(memMode) return [...mem.subjects.values()].sort((a,b)=>a.id-b.id); return await pReq(store('subjects','readonly').getAll()); }
+  async function subjectsAll(){ const arr = memMode ? [...mem.subjects.values()] : await pReq(store('subjects','readonly').getAll()); return arr.sort(subjectCmp); }
   async function subjectAdd(rec){ if(memMode){ const id=mem.seq.subjects++; mem.subjects.set(id,{...rec,id}); return id; } return await pReq(store('subjects','readwrite').add(rec)); }
   async function subjectPut(rec){ if(memMode){ mem.subjects.set(rec.id,rec); return; } await pReq(store('subjects','readwrite').put(rec)); }
   async function subjectGet(id){ if(memMode) return mem.subjects.get(id)||null; return (await pReq(store('subjects','readonly').get(id)))||null; }
