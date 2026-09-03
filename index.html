@@ -1618,7 +1618,7 @@
   }
 
   /* ================= EXAM / PRACTICE ENGINE ================= */
-  let examMode='exam', selSubjects=new Set(), practiceShuffle=true, practiceInstant=true, examInstant=true;
+  let examMode='exam', selSubjects=new Set(), practiceShuffle=true, practiceInstant=true, examInstant=true, selInit=false;
   function sample(arr,n){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a.slice(0,Math.max(0,n)); }
   function shuffle(arr){ return sample(arr, arr.length); }
   async function getLastExamMap(){ const m=await metaGet('lastExam'); return (m&&m.value)||{}; }
@@ -1712,7 +1712,7 @@
     if(exam && exam.submitted){ renderExamResult(); return; }
     const validIds=new Set(subjects.map(s=>s.id));
     [...selSubjects].forEach(id=>{ if(!validIds.has(id)) selSubjects.delete(id); });
-    if(!selSubjects.size) selSubjects.add(subjects[0].id);
+    if(!selInit){ if(!selSubjects.size) selSubjects.add(subjects[0].id); selInit=true; }   // chi goi y lan dau; sau do ton trong lua chon nguoi dung
     const hist=await metaGet('examHistory'); const arr=(hist&&hist.value)||[];
     const pool=poolForSubjects([...selSubjects]);
     const facts = examMode==='exam'
@@ -1728,12 +1728,12 @@
         <div class="subj-check">
           ${subjects.map(s=>`<label class="sc-item ${selSubjects.has(s.id)?'on':''}"><input type="checkbox" class="sc-chk" data-id="${s.id}" ${selSubjects.has(s.id)?'checked':''}><span class="sc-name">${esc(s.name)}</span><span class="sc-cnt">${s.questions.length}</span></label>`).join('')}
         </div>
-        <div class="pool-line">Đã chọn <b>${pool.length}</b> câu từ ${selSubjects.size} môn</div>
+        <div class="pool-line ${selSubjects.size?'':'warn-txt'}">${selSubjects.size? `Đã chọn <b>${pool.length}</b> câu từ ${selSubjects.size} môn` : 'Chưa chọn môn nào — hãy tích chọn ít nhất một môn ở trên.'}</div>
         <ul class="ex-facts">${facts}</ul>
         ${examMode==='practice'?`<label class="mini"><input type="checkbox" id="pracShuf" ${practiceShuffle?'checked':''}> Xáo trộn thứ tự câu hỏi</label><label class="mini"><input type="checkbox" id="pracInstant" ${practiceInstant?'checked':''}> Hiện đúng/sai ngay khi trả lời</label>`:''}
         ${examMode==='exam'?`<label class="mini"><input type="checkbox" id="examInstant" ${examInstant?'checked':''}> Hiện đúng/sai ngay khi trả lời (tự ôn)</label>`:''}
         <div id="poolNote" class="ex-note"></div>
-        <button class="btn btn-primary btn-block btn-lg" id="startBtn">${examMode==='exam'?'Bắt đầu thi':'Bắt đầu ôn'}</button>
+        <button class="btn btn-primary btn-block btn-lg" id="startBtn" ${selSubjects.size?'':'disabled'}>${examMode==='exam'?'Bắt đầu thi':'Bắt đầu ôn'}</button>
       </div>
       ${arr.length?`<div class="hist"><div class="hist-h">Lịch sử gần đây</div>${arr.map(h=>`<div class="hist-row"><span class="hist-name">${esc(h.name)}${h.mode==='practice'?' · ôn':''}</span><span class="hist-score">${Math.round(h.correct/h.total*100)}đ</span><span class="hist-sub">${h.correct}/${h.total} · ${fmtDate(h.at)}</span></div>`).join('')}</div>`:''}`;
     area.querySelectorAll('.mode-btn').forEach(b=> b.onclick=()=>{ examMode=b.dataset.mode; renderExam(); });
