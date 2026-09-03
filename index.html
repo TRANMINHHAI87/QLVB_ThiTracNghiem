@@ -717,11 +717,11 @@
       inp.onkeydown=e=>{ if(e.key==='Enter') okFn(); };
     });
   }
-  function modalConfirm({title,message='',ok='Đồng ý',danger=false}){
+  function modalConfirm({title,message='',ok='Đồng ý',cancel='Hủy',danger=false}){
     return new Promise(res=>{
       overlay._onCancel=()=>res(false);
       modalEl.innerHTML=`<h3>${esc(title)}</h3>${message?`<p class="msg">${esc(message)}</p>`:''}
-        <div class="actions"><button class="btn btn-ghost" data-cancel>Hủy</button><button class="btn ${danger?'btn-danger':'btn-primary'}" data-ok>${esc(ok)}</button></div>`;
+        <div class="actions"><button class="btn btn-ghost" data-cancel>${esc(cancel)}</button><button class="btn ${danger?'btn-danger':'btn-primary'}" data-ok>${esc(ok)}</button></div>`;
       overlay.hidden=false;
       modalEl.querySelector('[data-ok]').onclick=()=>{ closeModal(); res(true); };
       modalEl.querySelector('[data-cancel]').onclick=()=>{ closeModal(); res(false); };
@@ -1309,32 +1309,98 @@
     const H=headers.map(noAccent); const used=new Set();
     const map={stt:-1,q:-1,a1:-1,a2:-1,a3:-1,a4:-1,correct:-1};
     const find=fn=>{ for(let i=0;i<H.length;i++){ if(used.has(i)) continue; if(fn(H[i])){ return i; } } return -1; };
-    map.correct=find(h=> h.includes('dap an dung')||h.includes('correct')||h==='dung'||h.includes('ket qua')||h.includes('key')); if(map.correct>=0) used.add(map.correct);
-    map.stt=find(h=> h==='stt'||h==='tt'||h==='#'||h==='id'||h==='so tt'||h.includes('so thu tu')); if(map.stt>=0) used.add(map.stt);
+    // đáp án đúng: khớp cụm rõ ràng, tránh nhầm với "nhap dap an"
+    map.correct=find(h=> h.includes('dap an dung')||h.includes('dapan dung')||h.includes('correct')||h.includes('ket qua')||h==='dung'||h==='key'||h==='answer'); if(map.correct>=0) used.add(map.correct);
     map.q=find(h=> h.includes('cau hoi')||h.includes('question')||(h.includes('noi dung')&&!h.includes('dap'))||h==='cau'); if(map.q>=0) used.add(map.q);
-    const af=(n,l)=> find(h=> h==='dap an '+n||h==='dap an '+l||h==='phuong an '+n||h==='phuong an '+l||h===l||h.includes('dap an '+n)||h.includes('dap an '+l)||h.includes('phuong an '+n)||h.includes('phuong an '+l)||h.includes('lua chon '+l));
+    map.stt=find(h=> h==='stt'||h==='tt'||h==='#'||h==='id'||h==='so'||h==='so tt'||h.includes('so thu tu')); if(map.stt>=0) used.add(map.stt);
+    // đáp án: nhận cả "dap an N", "nhap dap an N", "phuong an N/L", "lua chon L", "đáp án A/B/C/D"
+    const af=(n,l)=> find(h=>{
+      const s=h.replace(/^nhap\s+/,'');
+      return s==='dap an '+n||s==='dap an '+l||s==='phuong an '+n||s==='phuong an '+l||s===l
+        ||s.includes('dap an '+n)||s.includes('dap an '+l)||s.includes('phuong an '+n)||s.includes('phuong an '+l)||s.includes('lua chon '+l);
+    });
     map.a1=af('1','a'); if(map.a1>=0) used.add(map.a1);
     map.a2=af('2','b'); if(map.a2>=0) used.add(map.a2);
     map.a3=af('3','c'); if(map.a3>=0) used.add(map.a3);
     map.a4=af('4','d'); if(map.a4>=0) used.add(map.a4);
-    if(map.q<0){ // positional fallback
-      const w=headers.length; const set=(k,i)=>{ if(map[k]<0&&i>=0&&i<w&&!used.has(i)){ map[k]=i; used.add(i);} };
-      set('stt',0); set('q',1); set('a1',2); set('a2',3); set('a3',4); set('a4',5); set('correct',6);
+    // Nếu tìm được câu hỏi + ≥2 đáp án -> tin vào header (kể cả file 8 cột có 2 STT, "Nhập đáp án…", đáp án đúng ở cột H)
+    const okHeader = map.q>=0 && [map.a1,map.a2].every(x=>x>=0);
+    if(!okHeader){
+      // Fallback theo vị trí: tìm cột câu hỏi = ô đầu tiên có văn bản dài, rồi 4 cột kế là đáp án, cột sau là đáp án đúng
+      const w=headers.length;
+      let qCol = map.q>=0? map.q : -1;
+      if(qCol<0){ for(let i=0;i<w;i++){ if(!used.has(i)){ qCol=i; break; } } }
+      const set=(k,i)=>{ if(map[k]<0&&i>=0&&i<w){ map[k]=i; } };
+      set('q',qCol);
+      set('a1',qCol+1); set('a2',qCol+2); set('a3',qCol+3); set('a4',qCol+4);
+      if(map.correct<0) set('correct',qCol+5);
+      if(map.stt<0 && qCol>0) set('stt',0);
     }
     return map;
   }
 
   function resolveCorrect(raw,answers){
-    const res=new Set(); if(!raw) return res;
-    const norm=noAccent(raw);
-    answers.forEach((a,i)=>{ if(a&&noAccent(a)===norm) res.add(i); });
-    if(res.size) return res;
-    raw.split(/[,;\/]+|\s+/).filter(Boolean).forEach(tok=>{
-      const t=noAccent(tok);
-      let mm=t.match(/dap an\s*([a-d1-4])/); if(mm){ const c=mm[1]; if(/[1-4]/.test(c)) res.add(+c-1); else res.add(c.charCodeAt(0)-97); return; }
-      const d=t.match(/^(\d+)$/); if(d){ const n=+d[1]; if(n>=1&&n<=answers.length) res.add(n-1); return; }
-      if(/^[a-d]$/.test(t)) res.add(t.charCodeAt(0)-97);
-    });
+    const res=new Set(); if(raw==null) return res;
+    raw=String(raw).trim(); if(!raw) return res;
+    const clean=s=> noAccent(s).replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+    const nAns=answers.map(clean);
+    const nRaw=clean(raw);
+    const add=i=>{ if(i>=0&&i<answers.length && String(answers[i]).trim()!=='') res.add(i); };
+
+    // (0) Ô đáp án đúng CHỈ là ký hiệu vị trí ("4", "B", "2." , "c)") -> hiểu ngay là chỉ số, KHÔNG khớp nội dung
+    const only=raw.trim().replace(/[.\):,;]+$/,'').trim();
+    let m0=only.match(/^([1-9])$/); if(m0){ const n=+m0[1]; if(n>=1&&n<=answers.length){ add(n-1); return res; } }
+    m0=noAccent(only).match(/^([a-h])$/); if(m0){ add(m0[1].charCodeAt(0)-97); return res; }
+    m0=noAccent(only).match(/^(?:dap an|phuong an|cau|y|chon|dap|so)\s*([1-9]|[a-h])$/);
+    if(m0){ const c=m0[1]; if(/[1-9]/.test(c)){ if(+c<=answers.length){ add(+c-1); return res; } } else { add(c.charCodeAt(0)-97); return res; } }
+
+    // (1) NỘI DUNG khớp một đáp án cụ thể (ưu tiên cao nhất): y hệt, rồi bao/được-bao duy nhất
+    let exact=-1; answers.forEach((a,i)=>{ if(a && nAns[i] && nAns[i]===nRaw) exact=i; });
+    if(exact>=0){ add(exact); return res; }
+    if(nRaw.length>=5){
+      // Chọn đáp án GIỐNG ô G nhất. Điểm = trộn: bao chứa + tiền tố chung + từ chung.
+      const rt=nRaw.split(' ').filter(w=>w.length>=2);
+      const rset=new Set(rt);
+      function commonPrefix(a,b){ let k=0; const n=Math.min(a.length,b.length); while(k<n&&a[k]===b[k]) k++; return k; }
+      let best=-1, bestSc=-1, second=-1;
+      answers.forEach((a,i)=>{ if(!a||!nAns[i]) return; const na=nAns[i];
+        const contain = (na.includes(nRaw)||nRaw.includes(na)) ? Math.min(na.length,nRaw.length)/Math.max(na.length,nRaw.length) : 0;
+        const pref = commonPrefix(na,nRaw)/Math.max(na.length,nRaw.length);
+        const at=na.split(' ').filter(w=>w.length>=2); let inter=0; at.forEach(w=>{ if(rset.has(w)) inter++; });
+        const jac = inter/((rt.length+at.length-inter)||1);
+        const sc = Math.max(contain, pref)*0.6 + jac*0.4;
+        if(sc>bestSc){ second=bestSc; bestSc=sc; best=i; } else if(sc>second){ second=sc; }
+      });
+      // nhận khi giống rõ rệt và tách bạch so với đáp án nhì
+      if(best>=0 && bestSc>=0.55 && (bestSc-second)>=0.08){ add(best); return res; }
+      // hoặc trùng bao chứa gần khít (>=0.85) dù các đáp án hao hao
+      let cbest=-1, csc=0;
+      answers.forEach((a,i)=>{ if(!a||!nAns[i]) return; const na=nAns[i];
+        if(na.includes(nRaw)||nRaw.includes(na)){ const r=Math.min(na.length,nRaw.length)/Math.max(na.length,nRaw.length); if(r>csc){csc=r;cbest=i;} }
+      });
+      if(cbest>=0 && csc>=0.85){ add(cbest); return res; }
+    }
+
+    // (2) Ký hiệu/số, có thể nhiều: "1 và 2", "đáp án 1, 3", "a và c", "ý 2 và 4"
+    const symMatches=[...nRaw.matchAll(/(?:^|[^a-z0-9])([1-9]|[a-h])(?=$|[^a-z0-9])/g)].map(m=>m[1]);
+    const nonSym = nRaw.replace(/[1-9a-h]/g,'').replace(/\b(dap an|phuong an|cau|y|chon|dung|so|va|hoac)\b/g,'').replace(/\s+/g,'').length;
+    if(symMatches.length && nonSym<=3){    // ô chủ yếu là ký hiệu, không phải câu văn dài
+      symMatches.forEach(c=>{ if(/[1-9]/.test(c)) add(+c-1); else add(c.charCodeAt(0)-97); });
+      if(res.size) return res;
+    }
+
+    // (3) "tất cả / toàn bộ (các) đáp án"
+    if(/\b(tat ca|toan bo)\b/.test(nRaw) && /(dap an|phuong an|y kien|dap|phuong)/.test(nRaw)){
+      // nếu có phương án cũng là câu "tất cả..." -> đó chính là đáp án đúng
+      const allOpt=nAns.findIndex(a=> a && /\b(tat ca|toan bo)\b/.test(a) && /(dap an|phuong an|y kien|dap|phuong)/.test(a));
+      if(allOpt>=0){ add(allOpt); return res; }
+      for(let i=0;i<answers.length;i++) add(i);
+      if(res.size>=2) return res;
+      res.clear();
+    }
+
+    // (4) Chốt: một ký hiệu đơn còn sót
+    const m=nRaw.match(/^([1-9]|[a-h])$/); if(m){ if(/[1-9]/.test(m[1])) add(+m[1]-1); else add(m[1].charCodeAt(0)-97); }
     return res;
   }
   /* ---- Build questions from a parsed file (mapping) ---- */
@@ -1367,11 +1433,14 @@
 
   async function addQuestionsToSubject(sub, qs){
     const seen=new Set(sub.questions.map(qKey));
-    const now=Date.now(); let added=0, dup=0;
-    qs.forEach(q=>{ const k=qKey(q); if(seen.has(k)){dup++;return;} seen.add(k); sub.questions.push({...q, addedAt:now}); added++; });
+    const now=Date.now(); let added=0, dup=0, noAns=0;
+    qs.forEach(q=>{ const k=qKey(q); if(seen.has(k)){dup++;return;} seen.add(k);
+      if(!q.correct || !q.correct.length) noAns++;
+      sub.questions.push({...q, addedAt:now}); added++; });
     await subjectPut(sub);
     subjects=await subjectsAll();
     toast(`Đã thêm ${added} câu vào “${sub.name}”${dup?`, bỏ ${dup} trùng`:''}.`);
+    if(noAns>0) setTimeout(()=> modalConfirm({title:`${noAns}/${added} câu chưa có đáp án đúng`, message:`Trong file vừa nạp, ${noAns} câu chưa xác định được đáp án đúng — thường do ô "Đáp án đúng" trong Excel bị bỏ trống, hoặc ghi theo kiểu chương trình chưa nhận ra. Các câu này khi thi/ôn sẽ không có đáp án để chấm. Bạn nên bổ sung cột đáp án đúng trong file rồi nạp lại. Vẫn giữ các câu này chứ?`, ok:'Đã hiểu, giữ lại', cancel:'Để tôi sửa file'}), 400);
   }
 
   /* ---- Mapping UI (uses `pending`) ---- */
@@ -1930,7 +1999,7 @@
   /* ================= JSON: đọc online (GitHub Pages) · nhập · xuất ================= */
   let remoteInfo=null;
 
-  function normalizeQuestion(q){
+  function normalizeQuestion(q, zeroBased){
     if(!q || typeof q!=='object') return null;
     const question=String(q.question ?? q.cauhoi ?? q.cau_hoi ?? q.noidung ?? '').trim();
     let answers = q.answers ?? q.dapan ?? q.dap_an ?? q.options ?? [];
@@ -1941,10 +2010,11 @@
     let raw = q.correct ?? q.dapandung ?? q.dap_an_dung ?? q.answer ?? q.key;
     const set=new Set();
     const arr = Array.isArray(raw) ? raw : (raw==null?[]:[raw]);
+    // File do app xuất (format 'vbtn-quiz') -> chỉ số 0-based. JSON tự soạn -> tự đoán 0/1-based.
+    const guessZero = arr.some(x=> x===0 || x==='0');
     arr.forEach(v=>{
       if(typeof v==='number' && Number.isFinite(v)){
-        // số: 0-based nếu có 0, còn lại coi là 1-based
-        const i = (arr.some(x=> x===0)) ? v : v-1;
+        const i = (zeroBased || guessZero) ? v : v-1;
         if(i>=0 && i<answers.length) set.add(i);
       } else {
         [...resolveCorrect(String(v==null?'':v), answers)].forEach(i=> set.add(i));
@@ -1961,13 +2031,14 @@
     else if(obj && Array.isArray(obj.mon)) list=obj.mon;
     else if(obj && (obj.questions||obj.cauhoi)) list=[obj];
     else return [];
+    const zeroBased = !!(obj && typeof obj==='object' && obj.format==='vbtn-quiz');  // file app xuất -> 0-based
     const out=[];
     list.forEach((s,i)=>{
       if(!s || typeof s!=='object') return;
       const name=String(s.name ?? s.ten ?? s.subject ?? ('Môn '+(i+1))).trim() || ('Môn '+(i+1));
       let qs = s.questions ?? s.cauhoi ?? s.items ?? [];
       if(!Array.isArray(qs)) return;
-      const norm=qs.map(normalizeQuestion).filter(Boolean);
+      const norm=qs.map(q=> normalizeQuestion(q, zeroBased)).filter(Boolean);
       if(norm.length) out.push({name, questions:norm});
     });
     return out;
@@ -2038,17 +2109,18 @@
     catch(e){ toast('File JSON hỏng hoặc sai định dạng.'); return; }
     const parsed=parseQuizJSON(obj);
     if(!parsed.length){ toast('Không tìm thấy câu hỏi hợp lệ trong file JSON.'); return; }
-    let newSub=0, addedAll=0, dupAll=0;
+    let newSub=0, addedAll=0, dupAll=0, noAns=0;
     for(const s of parsed){
       let sub=subjects.find(x=> noAccent(x.name)===noAccent(s.name));
       if(!sub){ const id=await subjectAdd({name:s.name, questions:[], createdAt:Date.now()}); subjects=await subjectsAll(); sub=subjects.find(x=>x.id===id); newSub++; }
       const seen=new Set(sub.questions.map(qKey));
       let added=0, dup=0;
-      s.questions.forEach(q=>{ const k=qKey(q); if(seen.has(k)){dup++;return;} seen.add(k); sub.questions.push(q); added++; });
+      s.questions.forEach(q=>{ const k=qKey(q); if(seen.has(k)){dup++;return;} seen.add(k); if(!q.correct||!q.correct.length) noAns++; sub.questions.push(q); added++; });
       await subjectPut(sub); addedAll+=added; dupAll+=dup;
     }
     subjects=await subjectsAll();
     toast(`Đã nạp ${addedAll} câu${newSub?`, tạo ${newSub} môn mới`:''}${dupAll?`, bỏ ${dupAll} trùng`:''}.`);
+    if(noAns>0) setTimeout(()=> modalConfirm({title:`${noAns} câu chưa có đáp án đúng`, message:`File JSON vừa nạp có ${noAns} câu chưa xác định được đáp án đúng. Các câu này khi thi/ôn sẽ không có đáp án để chấm.`, ok:'Đã hiểu'}), 400);
     renderBank();
   }
 
