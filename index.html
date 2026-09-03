@@ -465,6 +465,15 @@
   .ver-badge.on{ color:#0E5C2C; background:var(--green-tint); }
   .ver-badge.off{ color:var(--brand-700); background:var(--brand-tint); }
   .badge-on{ font-size:10px; font-weight:800; color:#0E5C2C; background:var(--green-tint); padding:2px 7px; border-radius:20px; margin-left:7px; vertical-align:middle; }
+  /* ---- Resume unfinished session ---- */
+  .resume-card{ background:var(--card); border:1px solid var(--line); border-left:4px solid var(--amber); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow); margin-bottom:14px; }
+  .resume-h{ font-size:15px; font-weight:800; color:var(--ink); margin-bottom:8px; }
+  .resume-body{ margin-bottom:14px; }
+  .resume-name{ font-size:14px; font-weight:700; color:var(--brand-700); margin-bottom:3px; }
+  .resume-meta{ font-size:13px; color:var(--ink-2); margin-top:2px; }
+  .resume-acts{ display:flex; flex-wrap:wrap; gap:8px; }
+  .resume-acts .btn{ flex:1; min-width:130px; }
+  .subtab.has-pending::after{ content:''; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--amber); margin-left:5px; vertical-align:middle; }
 </style>
 </head>
 <body>
@@ -1659,6 +1668,7 @@
       exam={ mode:'practice', instant:practiceInstant, ids, key, sourceName, questions:buildExamQuestions(raw), answers:{}, idx:0, startedAt:Date.now(), deadline:null, submitted:false, timerId:null };
     }
     await persistExam();
+    updateExamBadge();
     renderExam();
   }
   async function persistExam(){
@@ -1701,6 +1711,7 @@
     const hist=await metaGet('examHistory'); const arr=(hist&&hist.value)||[];
     arr.unshift({name:exam.sourceName, mode:exam.mode, correct, total, at:Date.now()});
     await metaSet('examHistory', arr.slice(0,20));
+    updateExamBadge();
     renderExam();
   }
 
@@ -1708,6 +1719,7 @@
     const area=$('#examArea');
     area.className='ea-config';
     if(!subjects.length){ area.innerHTML=`<div class="empty"><h3>Chưa có câu hỏi để thi</h3><p>Vào mục <b>Ngân hàng</b> tải câu hỏi theo môn trước đã.</p></div>`; return; }
+    if(exam && !exam.submitted && exam.askResume){ renderResumeCard(); return; }
     if(exam && !exam.submitted){ if(exam.mode==='practice') renderPracticeTaking(); else renderExamTaking(); return; }
     if(exam && exam.submitted){ renderExamResult(); return; }
     const validIds=new Set(subjects.map(s=>s.id));
@@ -1745,6 +1757,49 @@
     if(examMode==='exam'){ if(pool.length<EXAM_SIZE) note.innerHTML=`<span class="warn-txt">Chỉ có ${pool.length} câu (nhỏ hơn ${EXAM_SIZE}). Đề sẽ gồm ${pool.length} câu.</span>`; else note.textContent=`Đủ tạo đề ${EXAM_SIZE} câu.`; }
     else { note.textContent=`Bạn sẽ lần lượt trả lời ${pool.length} câu, có thể bỏ qua câu chưa nhớ.`; }
     $('#startBtn').onclick=()=> startSession(examMode);
+  }
+
+  /* ---- Bài đang làm dở: nhắc & cho chọn làm tiếp hay tạo mới ---- */
+  let persistTimer=null;
+  function persistExamSoon(){ clearTimeout(persistTimer); persistTimer=setTimeout(()=>{ persistExam(); }, 300); }
+  function updateExamBadge(){
+    const b=document.querySelector('.subtab[data-sub="exam"]');
+    if(b) b.classList.toggle('has-pending', !!(exam && !exam.submitted));
+  }
+  function renderResumeCard(){
+    const area=$('#examArea'); area.className='ea-config';
+    const total=exam.questions.length, done=Object.keys(exam.answers||{}).length;
+    const isExam=exam.mode==='exam';
+    const rem = (isExam && exam.deadline) ? (exam.deadline-Date.now()) : null;
+    const expired = rem!==null && rem<=0;
+    const mmLeft = rem!==null ? Math.max(0,Math.floor(rem/60000)) : 0;
+    area.innerHTML=`
+      <div class="resume-card">
+        <div class="resume-h">Bạn có bài ${isExam?'thi':'ôn tập'} đang làm dở</div>
+        <div class="resume-body">
+          <div class="resume-name">${esc(exam.sourceName||'')}</div>
+          <div class="resume-meta">Đã làm <b>${done}</b>/${total} câu · bắt đầu ${fmtDate(exam.startedAt)}</div>
+          ${isExam ? (expired
+            ? '<div class="resume-meta warn-txt">Đã quá thời gian làm bài</div>'
+            : `<div class="resume-meta">Thời gian còn lại khoảng <b>${mmLeft}</b> phút</div>`) : ''}
+        </div>
+        <div class="resume-acts">
+          ${expired
+            ? '<button class="btn btn-primary" id="rsMore">Làm tiếp (thêm giờ)</button><button class="btn btn-ghost" id="rsScore">Chấm điểm luôn</button>'
+            : '<button class="btn btn-primary" id="rsGo">Làm tiếp</button>'}
+          <button class="btn btn-ghost" id="rsNew">Bỏ, tạo bài mới</button>
+        </div>
+        ${isExam&&!expired?'<p class="hint">Đồng hồ bài thi chạy theo giờ thực, kể cả khi bạn đóng ứng dụng.</p>':''}
+      </div>`;
+    const go=()=>{ exam.askResume=false; renderExam(); };
+    const g=$('#rsGo'); if(g) g.onclick=go;
+    const more=$('#rsMore'); if(more) more.onclick=async ()=>{ exam.deadline=Date.now()+EXAM_MIN*60000; await persistExam(); go(); };
+    const sc=$('#rsScore'); if(sc) sc.onclick=()=>{ exam.askResume=false; finishExam(true); };
+    $('#rsNew').onclick=async ()=>{
+      const ok=await modalConfirm({title:'Bỏ bài đang làm dở?', message:`Bài ${isExam?'thi':'ôn'} “${exam.sourceName}” (đã làm ${done}/${total} câu) sẽ bị xóa và không chấm điểm.`, ok:'Bỏ, tạo bài mới', cancel:'Giữ lại', danger:true});
+      if(!ok) return;
+      exam=null; await metaSet('examInProgress', null); updateExamBadge(); renderExam();
+    };
   }
 
   function examQuestionInner(q, qi){
@@ -1785,7 +1840,7 @@
       const qi=Number(b.dataset.q), oi=Number(b.dataset.o);
       if(exam.instant && exam.answers[qi]!=null) return;   // đã trả lời thì khóa (chế độ hiện ngay)
       exam.answers[qi]=oi;
-      persistExam();
+      persistExamSoon();
       $('#examDone').textContent=examProgress();
       const art=document.getElementById('eq'+qi);
       if(exam.instant && art){ art.outerHTML=examQuestionHtml(exam.questions[qi], qi); }   // tô lại tại chỗ, giữ nguyên cuộn
@@ -1830,7 +1885,7 @@
       </div>`;
     area.querySelectorAll('.eq-opt').forEach(b=> b.onclick=()=>{
       if(exam.instant && exam.answers[i]!=null) return;   // đã chọn thì khóa lại (chế độ hiện ngay)
-      exam.answers[i]=Number(b.dataset.o); persistExam(); renderPracticeTaking();
+      exam.answers[i]=Number(b.dataset.o); persistExamSoon(); renderPracticeTaking();
     });
     $('#pracPrev').onclick=()=>{ if(exam.idx>0){ exam.idx--; renderPracticeTaking(); } };
     $('#pracSkip').onclick=()=>{ if(exam.idx<qs.length-1){ exam.idx++; renderPracticeTaking(); } else finishExam(false); };
@@ -2143,6 +2198,10 @@
   const expBtn=$('#btnExportJSON');
   if(CAN_EXPORT){ expBtn.hidden=false; expBtn.addEventListener('click', ()=> exportJSON()); }
 
+  // Lưu ngay khi ứng dụng bị ẩn/đóng để không mất bài đang làm
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden' && exam && !exam.submitted){ clearTimeout(persistTimer); persistExam(); } });
+  window.addEventListener('pagehide', ()=>{ if(exam && !exam.submitted){ clearTimeout(persistTimer); persistExam(); } });
+
   /* ================= Tabs ================= */
   document.querySelectorAll('.tab').forEach(t=> t.onclick=()=>{
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('is-active'));
@@ -2171,9 +2230,9 @@
     // Resume an exam/practice that was in progress
     const ip=await metaGet('examInProgress');
     if(ip && ip.value && ip.value.questions && ip.value.questions.length){
-      exam={...ip.value, submitted:false, timerId:null};
-      if(exam.mode==='exam' && exam.deadline && Date.now()>=exam.deadline){ await finishExam(true); }
+      exam={...ip.value, submitted:false, timerId:null, askResume:true};   // hỏi người dùng, không tự nộp
     }
+    updateExamBadge();
     renderDocs();
     renderResults();
     renderFolderStatus();
