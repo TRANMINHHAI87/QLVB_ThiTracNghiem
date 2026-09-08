@@ -269,7 +269,7 @@
   .hist-sub{ font-size:11px; color:var(--ink-3); font-family:var(--mono); }
 
   /* ---- Exam taking ---- */
-  .exam-bar{ position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; box-shadow:var(--shadow); margin-bottom:12px; }
+  .exam-bar{ position:sticky; top:var(--topbar-h,0px); z-index:20; display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:10px 12px; box-shadow:var(--shadow); margin-bottom:12px; }
   .clock-box{ display:flex; align-items:center; gap:6px; }
   .clock-ico{ font-size:15px; }
   .exam-clock{ font-family:var(--mono); font-weight:800; font-size:18px; color:var(--brand-700); font-variant-numeric:tabular-nums; }
@@ -439,14 +439,17 @@
     .mng-list > .empty, .mng-list > .hint{ grid-column:1/-1; }
 
     /* Cấu hình thi & màn ôn tập: giữ bề ngang dễ đọc, canh giữa */
-    .ea-config, .ea-practice{ max-width:900px; margin:0 auto; }
+    .ea-config{ max-width:900px; margin:0 auto; }
+    .ea-practice{ margin:0 auto; }
     .ea-config .ex-facts{ grid-template-columns:repeat(4,1fr); }
     .ea-config .subj-check{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 
-    /* Làm bài thi: 2 cột câu hỏi cho đỡ cuộn */
-    .ea-exam .exam-scroll{ display:grid; grid-template-columns:1fr 1fr; gap:10px; align-items:start; }
-    .ea-exam .exam-q{ margin-bottom:0; }
-    .ea-exam .exam-foot{ grid-column:1/-1; max-width:420px; margin-left:auto; margin-right:auto; }
+    /* Làm bài: mỗi câu 1 dòng + bảng số câu bên phải */
+    .exam-layout{ display:grid; grid-template-columns:minmax(0,1fr) 260px; gap:14px; align-items:start; }
+    .palette{ display:flex; flex-direction:column; max-height:calc(100vh - var(--topbar-h,110px) - 200px); position:sticky; top:calc(var(--topbar-h,110px) + 12px); background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:12px; box-shadow:var(--shadow); }
+    .ea-exam .exam-foot{ max-width:420px; margin-left:auto; margin-right:auto; }
+    .ea-practice, .ea-single{ max-width:1180px; }
+    .ea-single .prac-nav .btn{ min-width:150px; }
 
     /* Kết quả: thẻ điểm canh giữa, phần xem lại 2 cột */
     .ea-result .result-card{ max-width:900px; margin:0 auto; }
@@ -474,6 +477,58 @@
   .resume-acts{ display:flex; flex-wrap:wrap; gap:8px; }
   .resume-acts .btn{ flex:1; min-width:130px; }
   .subtab.has-pending::after{ content:''; display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--amber); margin-left:5px; vertical-align:middle; }
+  .badge-emb{ font-size:10px; font-weight:800; color:var(--brand-700); background:var(--brand-tint); padding:2px 7px; border-radius:20px; margin-left:7px; vertical-align:middle; }
+  /* ---- Palette (bảng số câu) — điện thoại ẩn, máy tính hiện ---- */
+  @media (max-width:999px){
+    .exam-layout{ display:block; }
+    .palette{ display:none; }
+  }
+  .pal-h{ font-size:12.5px; font-weight:700; color:var(--ink-2); margin-bottom:8px; }
+  .pal-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:5px; flex:1 1 auto; min-height:0; overflow:auto; }
+  .pal-cell{ appearance:none; cursor:pointer; font:inherit; font-size:12px; font-weight:700; line-height:1;
+    height:32px; border:1.5px solid var(--line); border-radius:7px; background:#fff; color:var(--ink-2); font-family:var(--mono); }
+  .pal-cell:hover{ border-color:var(--brand); }
+  .pal-cell.done{ background:var(--green); border-color:var(--green); color:#fff; }
+  .pal-cell.skip{ background:var(--red); border-color:var(--red); color:#fff; }
+  .pal-cell.cur{ outline:2px solid var(--brand); outline-offset:1px; }
+  .pal-legend{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; font-size:11px; color:var(--ink-3); }
+  .pal-legend span{ display:flex; align-items:center; gap:4px; }
+  .pal-legend .lg{ width:11px; height:11px; border-radius:3px; border:1.5px solid var(--line); background:#fff; display:inline-block; }
+  .pal-legend .lg.done{ background:var(--green); border-color:var(--green); }
+  .pal-legend .lg.skip{ background:var(--red); border-color:var(--red); }
+  /* ---- Máy tính: tận dụng bề ngang, chữ to hơn, bảng số thoáng hơn ---- */
+  @media (min-width:1000px){
+    .app{ max-width:1360px; }
+    .selbar-inner{ max-width:1360px; }
+    .ea-single, .ea-practice{ max-width:none; }
+    .exam-layout{ grid-template-columns:minmax(0,1fr) 290px; gap:16px; }
+    .pal-grid{ grid-template-columns:repeat(6,1fr); }
+    .ea-single .exam-q, .ea-practice .exam-q{ padding:20px 22px; }
+    .ea-single .eq-text, .ea-practice .eq-text{ font-size:17px; line-height:1.6; }
+    .ea-single .eq-otext, .ea-practice .eq-otext{ font-size:15px; line-height:1.55; }
+    .ea-single .eq-opt, .ea-practice .eq-opt{ padding:13px 15px; }
+    .ea-single .eq-key, .ea-practice .eq-key{ width:29px; height:29px; font-size:14px; }
+    .ea-single .fb, .ea-practice .fb{ font-size:14.5px; }
+  }
+  @media (min-width:1500px){
+    .app{ max-width:1600px; }
+    .selbar-inner{ max-width:1600px; }
+    .exam-layout{ grid-template-columns:minmax(0,1fr) 345px; gap:18px; }
+    .pal-grid{ grid-template-columns:repeat(7,1fr); gap:6px; }
+    .pal-cell{ height:36px; font-size:13px; }
+    .pal-h{ font-size:13.5px; }
+    .ea-single .eq-text, .ea-practice .eq-text{ font-size:18.5px; }
+    .ea-single .eq-otext, .ea-practice .eq-otext{ font-size:16px; }
+    .ea-single .exam-q, .ea-practice .exam-q{ padding:24px 26px; }
+    .exam-clock{ font-size:20px; }
+  }
+  @media (min-width:1800px){
+    .app{ max-width:1780px; }
+    .selbar-inner{ max-width:1780px; }
+    .exam-layout{ grid-template-columns:minmax(0,1fr) 390px; }
+    .pal-grid{ grid-template-columns:repeat(8,1fr); }
+  }
+  @media (min-width:1000px){ .app{ padding-bottom:36px; } }
 </style>
 </head>
 <body>
@@ -568,6 +623,10 @@
           <button class="btn btn-block" id="btnSyncOnline">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7.6-4.2M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7.6 4.2"/><path d="M20 4v4h-4M4 20v-4h4"/></svg>
             Tải lại dữ liệu online
+          </button>
+          <button class="btn btn-block" id="btnExportHTML" hidden>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M9 9h6v6H9z"/></svg>
+            Xuất file HTML kèm câu hỏi (gửi 1 file)
           </button>
           <button class="btn btn-block" id="btnExportJSON" hidden>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9M8 17l4 4 4-4M4 3h16"/></svg>
@@ -1517,7 +1576,7 @@
     const total=subjects.reduce((s,x)=>s+x.questions.length,0);
     cont.innerHTML=`<div class="bank-sum">${subjects.length} môn · ${total} câu</div>`+subjects.map(s=>`
       <article class="bank-card">
-        <div class="bank-main"><h3 class="bank-name">${esc(s.name)}${s.origin==='remote'?'<span class="badge-on">online</span>':''}</h3><div class="bank-meta">${s.questions.length} câu</div></div>
+        <div class="bank-main"><h3 class="bank-name">${esc(s.name)}${s.origin==='remote'?'<span class="badge-on">online</span>':(s.origin==='embedded'?'<span class="badge-emb">kèm file</span>':'')}</h3><div class="bank-meta">${s.questions.length} câu</div></div>
         <div class="bank-acts">
           <button class="btn btn-sm btn-primary" data-act="up" data-id="${s.id}">Tải câu</button>
           <button class="btn btn-sm btn-ghost" data-act="mng" data-id="${s.id}">Sửa câu</button>
@@ -1662,10 +1721,10 @@
     if(mode==='exam'){
       const lastMap=await getLastExamMap();
       const raw=pickExamRaw(pool, lastMap[key]);
-      exam={ mode:'exam', instant:examInstant, ids, key, sourceName, questions:buildExamQuestions(raw), answers:{}, idx:0, startedAt:Date.now(), deadline:Date.now()+EXAM_MIN*60000, submitted:false, timerId:null };
+      exam={ mode:'exam', instant:examInstant, ids, key, sourceName, questions:buildExamQuestions(raw), answers:{}, visited:{}, idx:0, startedAt:Date.now(), deadline:Date.now()+EXAM_MIN*60000, submitted:false, timerId:null };
     } else {
       let raw=pool.slice(); if(practiceShuffle) raw=shuffle(raw);
-      exam={ mode:'practice', instant:practiceInstant, ids, key, sourceName, questions:buildExamQuestions(raw), answers:{}, idx:0, startedAt:Date.now(), deadline:null, submitted:false, timerId:null };
+      exam={ mode:'practice', instant:practiceInstant, ids, key, sourceName, questions:buildExamQuestions(raw), answers:{}, visited:{}, idx:0, startedAt:Date.now(), deadline:null, submitted:false, timerId:null };
     }
     await persistExam();
     updateExamBadge();
@@ -1673,7 +1732,7 @@
   }
   async function persistExam(){
     if(!exam){ await metaSet('examInProgress', null); return; }
-    await metaSet('examInProgress', { mode:exam.mode, instant:exam.instant, ids:exam.ids, key:exam.key, sourceName:exam.sourceName, questions:exam.questions, answers:exam.answers, idx:exam.idx, startedAt:exam.startedAt, deadline:exam.deadline });
+    await metaSet('examInProgress', { mode:exam.mode, instant:exam.instant, ids:exam.ids, key:exam.key, sourceName:exam.sourceName, questions:exam.questions, answers:exam.answers, visited:exam.visited||{}, idx:exam.idx, startedAt:exam.startedAt, deadline:exam.deadline });
   }
   function startTimer(){ stopTimer(); tickTimer(); exam.timerId=setInterval(tickTimer,1000); }
   function stopTimer(){ if(exam&&exam.timerId){ clearInterval(exam.timerId); exam.timerId=null; } }
@@ -1802,6 +1861,35 @@
     };
   }
 
+  /* ---- Bảng số thứ tự câu (bên phải) ---- */
+  function palState(i){
+    if(exam.answers[i]!=null) return 'done';
+    if(exam.visited && exam.visited[i]) return 'skip';
+    return '';
+  }
+  function paletteHtml(){
+    const cells=exam.questions.map((_,i)=>{
+      const cur=(i===exam.idx)?' cur':'';
+      return `<button class="pal-cell ${palState(i)}${cur}" data-i="${i}">${i+1}</button>`;
+    }).join('');
+    return `<div class="pal-h">Danh sách câu</div><div class="pal-grid">${cells}</div>
+      <div class="pal-legend"><span><i class="lg done"></i>Đã làm</span><span><i class="lg skip"></i>Bỏ qua</span><span><i class="lg"></i>Chưa tới</span></div>`;
+  }
+  function wirePalette(){
+    document.querySelectorAll('.pal-cell').forEach(b=> b.onclick=()=>{
+      const i=Number(b.dataset.i);
+      if(exam.mode==='practice'){ exam.idx=i; persistExamSoon(); renderPracticeTaking(); }
+      else if(examSingleView()){ examGoTo(i,false); }
+      else { const t=document.getElementById('eq'+i); if(t) t.scrollIntoView({behavior:'smooth', block:'center'}); }
+    });
+  }
+  function updatePaletteCell(i){
+    const c=document.querySelector('.pal-cell[data-i="'+i+'"]');
+    if(!c) return;
+    c.classList.remove('done','skip');
+    const st=palState(i); if(st) c.classList.add(st);
+  }
+
   function examQuestionInner(q, qi){
     const letters=['A','B','C','D','E','F'];
     const sel=exam.answers[qi]; const answered=sel!=null;
@@ -1821,9 +1909,61 @@
   function examQuestionHtml(q, qi){
     return `<article class="exam-q" id="eq${qi}"><div class="eq-head"><span class="eq-no">Câu ${qi+1}</span></div><p class="eq-text">${esc(q.question)}</p>${examQuestionInner(q,qi)}</article>`;
   }
+  /* ---- Máy tính: làm bài thi từng câu một ---- */
+  function examSingleView(){ try{ return window.matchMedia('(min-width:1000px)').matches; }catch(_){ return false; } }
+  function examGoTo(i, markSkip){
+    if(!exam || exam.submitted) return;
+    clearTimeout(exam._adv);
+    if(markSkip && exam.answers[exam.idx]==null){ if(!exam.visited) exam.visited={}; exam.visited[exam.idx]=1; }
+    exam.idx=Math.max(0, Math.min(exam.questions.length-1, i));
+    persistExamSoon();
+    renderExamSingle();
+  }
+  function renderExamSingle(){
+    const area=$('#examArea'); area.className='ea-exam ea-single';
+    lastSingle=true;
+    const qs=exam.questions, i=exam.idx, q=qs[i], last=(i===qs.length-1);
+    area.innerHTML=`
+      <div class="exam-bar">
+        <div class="clock-box"><span class="clock-ico">⏱</span><span id="examClock" class="exam-clock">--:--</span></div>
+        <div class="exam-prog">Câu <b>${i+1}</b>/${qs.length} · đã làm <span id="examDone">${examProgress()}</span></div>
+        <button class="btn btn-sm btn-primary" id="submitExam">Nộp</button>
+      </div>
+      <div class="exam-layout">
+        <div class="prac-main">
+          <div class="prac-bar"><div class="prac-fill" style="width:${Math.round((i+1)/qs.length*100)}%"></div></div>
+          <article class="exam-q" id="eq${i}">
+            <div class="eq-head"><span class="eq-no">Câu ${i+1}</span></div>
+            <p class="eq-text">${esc(q.question)}</p>
+            ${examQuestionInner(q,i)}
+          </article>
+          <div class="prac-nav">
+            <button class="btn btn-ghost" id="exPrev" ${i===0?'disabled':''}>‹ Câu trước</button>
+            <button class="btn btn-primary" id="exNext">${last?'Nộp bài':'Câu tiếp theo ›'}</button>
+          </div>
+        </div>
+        <aside class="palette" id="palette">${paletteHtml()}</aside>
+      </div>`;
+    area.querySelectorAll('.eq-opt').forEach(b=> b.onclick=()=>{
+      if(exam.instant && exam.answers[i]!=null) return;
+      exam.answers[i]=Number(b.dataset.o);
+      persistExamSoon();
+      renderExamSingle();                      // hiện đúng/sai ngay
+      clearTimeout(exam._adv);
+      if(!last){ exam._adv=setTimeout(()=>{ if(exam && !exam.submitted && exam.idx===i) examGoTo(i+1,false); }, exam.instant?1100:250); }
+    });
+    $('#exPrev').onclick=()=> examGoTo(i-1,false);
+    $('#exNext').onclick=()=> last? finishExam(false) : examGoTo(i+1,true);   // chưa tích mà bấm tiếp = bỏ qua -> đỏ
+    $('#submitExam').onclick=()=> finishExam(false);
+    wirePalette();
+    startTimer();
+  }
+
   function renderExamTaking(){
+    if(examSingleView()){ renderExamSingle(); return; }   // máy tính: từng câu một
     const area=$('#examArea');
     area.className='ea-exam';
+    lastSingle=false;
     const qs=exam.questions;
     area.innerHTML=`
       <div class="exam-bar">
@@ -1831,9 +1971,12 @@
         <div class="exam-prog"><span id="examDone">${examProgress()}</span>/${qs.length}</div>
         <button class="btn btn-sm btn-primary" id="submitExam">Nộp</button>
       </div>
-      <div class="exam-scroll" id="examScroll">
-        ${qs.map((q,qi)=> examQuestionHtml(q,qi)).join('')}
-        <div class="exam-foot"><button class="btn btn-primary btn-block btn-lg" id="submitExam2">Nộp bài</button></div>
+      <div class="exam-layout">
+        <div class="exam-scroll" id="examScroll">
+          ${qs.map((q,qi)=> examQuestionHtml(q,qi)).join('')}
+          <div class="exam-foot"><button class="btn btn-primary btn-block btn-lg" id="submitExam2">Nộp bài</button></div>
+        </div>
+        <aside class="palette" id="palette">${paletteHtml()}</aside>
       </div>`;
     $('#examScroll').addEventListener('click', e=>{
       const b=e.target.closest('.eq-opt'); if(!b) return;
@@ -1845,9 +1988,11 @@
       const art=document.getElementById('eq'+qi);
       if(exam.instant && art){ art.outerHTML=examQuestionHtml(exam.questions[qi], qi); }   // tô lại tại chỗ, giữ nguyên cuộn
       else { b.parentElement.querySelectorAll('.eq-opt').forEach(x=>x.classList.toggle('sel', x===b)); }
+      updatePaletteCell(qi);
     });
     $('#submitExam').onclick=()=> finishExam(false);
     $('#submitExam2').onclick=()=> finishExam(false);
+    wirePalette();
     startTimer();
   }
 
@@ -1855,6 +2000,7 @@
     const area=$('#examArea'), letters=['A','B','C','D','E','F'];
     area.className='ea-practice';
     const qs=exam.questions, i=exam.idx, q=qs[i], answered=exam.answers[i]!=null;
+
     const sel=exam.answers[i];
     const reveal = exam.instant && answered;
     const correctIdx = q.opts.findIndex(o=>o.correct);
@@ -1866,6 +2012,8 @@
         <button class="btn btn-sm btn-primary" id="pracFinish">Kết thúc</button>
       </div>
       <div class="prac-bar"><div class="prac-fill" style="width:${Math.round((i+1)/qs.length*100)}%"></div></div>
+      <div class="exam-layout">
+      <div class="prac-main">
       <article class="exam-q">
         <div class="eq-head"><span class="eq-no">Câu ${i+1}</span>${answered&&!reveal?'<span class="eq-done">đã chọn</span>':''}</div>
         <p class="eq-text">${esc(q.question)}</p>
@@ -1882,15 +2030,21 @@
         <button class="btn btn-ghost" id="pracPrev" ${i===0?'disabled':''}>‹ Trước</button>
         <button class="btn btn-ghost" id="pracSkip">Bỏ qua</button>
         <button class="btn btn-primary" id="pracNext">${i===qs.length-1?'Xong ›':'Sau ›'}</button>
+      </div>
+      </div>
+      <aside class="palette" id="palette">${paletteHtml()}</aside>
       </div>`;
     area.querySelectorAll('.eq-opt').forEach(b=> b.onclick=()=>{
       if(exam.instant && exam.answers[i]!=null) return;   // đã chọn thì khóa lại (chế độ hiện ngay)
       exam.answers[i]=Number(b.dataset.o); persistExamSoon(); renderPracticeTaking();
     });
     $('#pracPrev').onclick=()=>{ if(exam.idx>0){ exam.idx--; renderPracticeTaking(); } };
-    $('#pracSkip').onclick=()=>{ if(exam.idx<qs.length-1){ exam.idx++; renderPracticeTaking(); } else finishExam(false); };
-    $('#pracNext').onclick=()=>{ if(exam.idx<qs.length-1){ exam.idx++; renderPracticeTaking(); } else finishExam(false); };
+    const pracFwd=()=>{ if(exam.answers[i]==null){ if(!exam.visited) exam.visited={}; exam.visited[i]=1; }
+      if(exam.idx<qs.length-1){ exam.idx++; persistExamSoon(); renderPracticeTaking(); } else finishExam(false); };
+    $('#pracSkip').onclick=pracFwd;
+    $('#pracNext').onclick=pracFwd;
     $('#pracFinish').onclick=()=> finishExam(false);
+    wirePalette();
   }
 
   function renderExamResult(){
@@ -2149,6 +2303,11 @@
 
   function renderOnlineStatus(){
     const el=$('#onlineStatus'); if(!el) return;
+    if(!remoteInfo && embeddedInfo){
+      el.hidden=false;
+      el.innerHTML=`<span class="fs-dot on"></span><div class="fs-info"><div class="fs-name">Dữ liệu kèm sẵn trong file: ${embeddedInfo.subjects} môn · ${embeddedInfo.total} câu</div><div class="fs-note">${embeddedInfo.at?('Xuất ngày '+fmtDate(embeddedInfo.at)):'Nhúng trong file HTML'} · dùng được không cần mạng</div></div>`;
+      return;
+    }
     if(remoteInfo){
       el.hidden=false;
       el.innerHTML=`<span class="fs-dot on"></span><div class="fs-info"><div class="fs-name">Dữ liệu online: ${remoteInfo.subjects} môn · ${remoteInfo.total} câu</div><div class="fs-note">${remoteInfo.at?('Xuất ngày '+fmtDate(remoteInfo.at)):'Đọc từ cauhoi.json'} · môn có nhãn “online”</div></div>`;
@@ -2179,6 +2338,64 @@
     renderBank();
   }
 
+  /* ---- Dữ liệu NHÚNG SẴN trong file HTML (gửi 1 file là dùng được) ---- */
+  let embeddedInfo=null;
+  function readEmbedded(){
+    const el=document.getElementById('vbtnData');
+    if(!el) return null;
+    try{ const t=(el.textContent||'').trim(); return t? JSON.parse(t) : null; }catch(_){ return null; }
+  }
+  async function loadEmbedded(){
+    const obj=readEmbedded(); if(!obj) return false;
+    const parsed=parseQuizJSON(obj); if(!parsed.length) return false;
+    const total=parsed.reduce((a,s)=>a+s.questions.length,0);
+    const stamp=JSON.stringify({at:obj.exportedAt||0, n:total, names:parsed.map(s=>s.name)});
+    const prev=await metaGet('embeddedStamp');
+    embeddedInfo={subjects:parsed.length, total, at:obj.exportedAt||0};
+    if(prev && prev.value===stamp) return false;          // đã nạp rồi, khỏi nạp lại
+    const all=await subjectsAll();
+    for(const s of all){ if(s.origin==='embedded') await subjectDelete(s.id); }
+    for(const s of parsed){ await subjectAdd({name:s.name, questions:s.questions, createdAt:Date.now(), origin:'embedded'}); }
+    await metaSet('embeddedStamp', stamp);
+    subjects=await subjectsAll();
+    toast(`Đã nạp ${total} câu kèm sẵn trong file (${parsed.length} môn).`);
+    return true;
+  }
+
+  async function exportStandaloneHTML(){
+    const all=await subjectsAll();
+    const usable=all.filter(s=> s.questions && s.questions.length);
+    if(!usable.length){ toast('Chưa có môn nào có câu hỏi để xuất.'); return; }
+    const total=usable.reduce((a,s)=>a+s.questions.length,0);
+    toast('Đang tạo file, chờ chút…');
+    await new Promise(r=> setTimeout(r,50));
+    const data=subjectsToJSON(usable);
+    const root=document.documentElement.cloneNode(true);
+    // dọn nội dung đang hiển thị để file mới sạch sẽ
+    ['#docList','#docsList','#quizList','#bankList','#examArea','#photoArea','#ocrResults','#mngList'].forEach(sel=>{
+      const el=root.querySelector(sel); if(el) el.innerHTML='';
+    });
+    ['#mapBox','#onlineStatus','#folderStatus','#resultHead'].forEach(sel=>{
+      const el=root.querySelector(sel); if(el){ el.innerHTML=''; el.setAttribute('hidden',''); }
+    });
+    // các khối này chứa nút được gắn sự kiện lúc khởi động -> chỉ ẩn, KHÔNG xóa nội dung
+    ['#selbar','#storeWarn'].forEach(sel=>{ const el=root.querySelector(sel); if(el) el.setAttribute('hidden',''); });
+    const ov=root.querySelector('#overlay');
+    if(ov){ ov.setAttribute('hidden',''); const md=ov.querySelector('.modal'); if(md) md.innerHTML=''; }
+    const oldData=root.querySelector('#vbtnData'); if(oldData) oldData.remove();
+    const sc=document.createElement('script');
+    sc.id='vbtnData'; sc.type='application/json';
+    sc.textContent=JSON.stringify(data).replace(/</g,'\\u003c');   // an toàn khi nhúng vào HTML
+    const head=root.querySelector('head'); if(head) head.appendChild(sc); else root.appendChild(sc);
+    const html='<!DOCTYPE html>\n'+root.outerHTML;
+    const blob=new Blob([html],{type:'text/html;charset=utf-8'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download='van-ban-trac-nghiem-kem-du-lieu.html';
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+    toast(`Đã xuất file HTML kèm ${total} câu (${usable.length} môn) · ${Math.round(blob.size/1024)} KB. Gửi 1 file này là máy khác dùng được ngay.`);
+  }
+
   async function exportJSON(){
     const all=await subjectsAll();
     const usable=all.filter(s=> s.questions && s.questions.length);
@@ -2197,6 +2414,26 @@
   $('#btnSyncOnline').addEventListener('click', ()=> syncRemote(true));
   const expBtn=$('#btnExportJSON');
   if(CAN_EXPORT){ expBtn.hidden=false; expBtn.addEventListener('click', ()=> exportJSON()); }
+  const expHtmlBtn=$('#btnExportHTML');
+  if(CAN_EXPORT){ expHtmlBtn.hidden=false; expHtmlBtn.addEventListener('click', ()=> exportStandaloneHTML()); }
+
+  // Đổi kích thước cửa sổ: bài thi chuyển giữa kiểu 'từng câu' (máy tính) và 'cuộn' (điện thoại)
+  var lastSingle=null;
+  window.addEventListener('resize', ()=>{
+    if(!exam || exam.submitted || exam.askResume || exam.mode!=='exam') return;
+    const now=examSingleView();
+    if(lastSingle!==null && now!==lastSingle) renderExamTaking();
+    lastSingle=now;
+  });
+
+  // Thanh dính (đồng hồ, bảng số) phải nằm DƯỚI thanh tiêu đề
+  function syncStickyOffset(){
+    const tb=document.querySelector('.topbar');
+    if(tb) document.documentElement.style.setProperty('--topbar-h', tb.offsetHeight+'px');
+  }
+  syncStickyOffset();
+  window.addEventListener('resize', syncStickyOffset);
+  window.addEventListener('orientationchange', syncStickyOffset);
 
   // Lưu ngay khi ứng dụng bị ẩn/đóng để không mất bài đang làm
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden' && exam && !exam.submitted){ clearTimeout(persistTimer); persistExam(); } });
@@ -2215,7 +2452,12 @@
   /* ================= Init ================= */
   (async function init(){
     await openDB();
-    if(memMode) $('#storeWarn').hidden=false;
+    if(memMode){
+      const w=$('#storeWarn'); w.hidden=false;
+      w.innerHTML = (location.protocol==='file:')
+        ? 'Trình duyệt <b>không cho lưu dữ liệu</b> khi mở file trực tiếp (hay gặp trên iPhone/Safari). Câu hỏi kèm trong file vẫn dùng bình thường, nhưng <b>bài đang làm dở, lịch sử điểm và tài liệu PDF sẽ không được nhớ</b> sau khi đóng. Muốn nhớ đầy đủ: mở bản online bằng Safari rồi bấm Chia sẻ → “Thêm vào MH chính”.'
+        : 'Đang chạy ở chế độ xem thử — dữ liệu <b>sẽ không được lưu</b>. Hãy tải file này về máy và mở bằng trình duyệt (Chrome/Safari) để lưu lại.';
+    }
     subjects=await subjectsAll();
     // Migrate old single question set (from previous version) into a subject
     const qm=await metaGet('quiz');
@@ -2239,6 +2481,8 @@
     autoSyncFolder();   // máy tính: tự thêm file mới từ thư mục đã liên kết
     const vb=$('#verBadge');
     if(vb){ vb.textContent = CAN_EXPORT? 'Offline' : 'Online'; vb.className='ver-badge '+(CAN_EXPORT?'off':'on'); }
+    await loadEmbedded();      // dữ liệu nhúng sẵn trong file HTML (nếu có)
+    renderResults();
     renderOnlineStatus();
     syncRemote(false);  // tự đọc cauhoi.json cạnh trang (GitHub Pages)
   })();
