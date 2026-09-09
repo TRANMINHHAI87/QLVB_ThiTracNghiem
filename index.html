@@ -489,13 +489,15 @@
     height:32px; border:1.5px solid var(--line); border-radius:7px; background:#fff; color:var(--ink-2); font-family:var(--mono); }
   .pal-cell:hover{ border-color:var(--brand); }
   .pal-cell.done{ background:var(--green); border-color:var(--green); color:#fff; }
-  .pal-cell.skip{ background:var(--red); border-color:var(--red); color:#fff; }
+  .pal-cell.wrong{ background:var(--red); border-color:var(--red); color:#fff; }
+  .pal-cell.skip{ background:var(--amber); border-color:var(--amber); color:#fff; }
   .pal-cell.cur{ outline:2px solid var(--brand); outline-offset:1px; }
   .pal-legend{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; font-size:11px; color:var(--ink-3); }
   .pal-legend span{ display:flex; align-items:center; gap:4px; }
   .pal-legend .lg{ width:11px; height:11px; border-radius:3px; border:1.5px solid var(--line); background:#fff; display:inline-block; }
   .pal-legend .lg.done{ background:var(--green); border-color:var(--green); }
-  .pal-legend .lg.skip{ background:var(--red); border-color:var(--red); }
+  .pal-legend .lg.wrong{ background:var(--red); border-color:var(--red); }
+  .pal-legend .lg.skip{ background:var(--amber); border-color:var(--amber); }
   /* ---- Máy tính: tận dụng bề ngang, chữ to hơn, bảng số thoáng hơn ---- */
   @media (min-width:1000px){
     .app{ max-width:1360px; }
@@ -529,6 +531,15 @@
     .pal-grid{ grid-template-columns:repeat(8,1fr); }
   }
   @media (min-width:1000px){ .app{ padding-bottom:36px; } }
+  /* ---- Ghi chú / trích dẫn văn bản ---- */
+  .q-note{ margin-top:12px; padding:10px 12px; border-left:3px solid var(--brand); background:var(--brand-tint);
+    border-radius:0 var(--radius-sm) var(--radius-sm) 0; font-style:italic; font-weight:700;
+    font-size:14.5px; line-height:1.55; color:var(--brand-700); }
+  .prac-nav{ margin-top:0; margin-bottom:10px; }
+  @media (min-width:1000px){
+    .q-note{ font-size:16px; padding:12px 15px; }
+    .ea-single .prac-nav, .ea-practice .prac-nav{ margin-bottom:12px; }
+  }
 </style>
 </head>
 <body>
@@ -1147,7 +1158,7 @@
       const opts=it.answers.map((a,i)=>{ if(!a) return ''; const on=it.correct.includes(i);
         return `<li class="opt ${on?'is-correct':''}"><span class="opt-key">${letters[i]}</span><span class="opt-text">${hi(a,quizQuery)}</span>${on?'<span class="opt-flag">Đáp án đúng</span>':''}</li>`;
       }).join('');
-      return `<article class="q-card"><span class="q-stt">${esc(it.stt||'')}</span><p class="q-text">${hi(it.question,quizQuery)}</p><ul class="opts">${opts}</ul></article>`;
+      return `<article class="q-card"><span class="q-stt">${esc(it.stt||'')}</span><p class="q-text">${hi(it.question,quizQuery)}</p><ul class="opts">${opts}</ul>${noteHtml(it)}</article>`;
     }).join('');
     if(matched.length>QUIZ_CAP) cont.insertAdjacentHTML('beforeend',`<p class="hint" style="text-align:center">Hiển thị ${QUIZ_CAP}/${matched.length} câu — gõ từ khóa để thu hẹp.</p>`);
   }
@@ -1375,9 +1386,10 @@
   }
   function autoDetect(headers){
     const H=headers.map(noAccent); const used=new Set();
-    const map={stt:-1,q:-1,a1:-1,a2:-1,a3:-1,a4:-1,correct:-1};
+    const map={stt:-1,q:-1,a1:-1,a2:-1,a3:-1,a4:-1,correct:-1,note:-1};
     const find=fn=>{ for(let i=0;i<H.length;i++){ if(used.has(i)) continue; if(fn(H[i])){ return i; } } return -1; };
     // đáp án đúng: khớp cụm rõ ràng, tránh nhầm với "nhap dap an"
+    map.note=find(h=> h.includes('ghi chu')||h.includes('trich dan')||h.includes('chu thich')||h.includes('can cu')||h.includes('nguon')||h.includes('van ban lien quan')); if(map.note>=0) used.add(map.note);
     map.correct=find(h=> h.includes('dap an dung')||h.includes('dapan dung')||h.includes('correct')||h.includes('ket qua')||h==='dung'||h==='key'||h==='answer'); if(map.correct>=0) used.add(map.correct);
     map.q=find(h=> h.includes('cau hoi')||h.includes('question')||(h.includes('noi dung')&&!h.includes('dap'))||h==='cau'); if(map.q>=0) used.add(map.q);
     map.stt=find(h=> h==='stt'||h==='tt'||h==='#'||h==='id'||h==='so'||h==='so tt'||h.includes('so thu tu')); if(map.stt>=0) used.add(map.stt);
@@ -1480,7 +1492,8 @@
       if(!question || answers.filter(a=>a).length<2) continue;   // phải có câu hỏi + ít nhất 2 đáp án (loại dòng tựa đề/rác)
       const stt = m.stt>=0? get(m.stt) : String(qs.length+1);
       const correct=[...resolveCorrect(get(m.correct),answers)];
-      qs.push({stt,question,answers,correct});
+      const note = (m.note>=0? get(m.note) : '');
+      qs.push({stt,question,answers,correct,note});
     }
     return qs;
   }
@@ -1500,14 +1513,19 @@
   $('#btnUpload').addEventListener('click', ()=>{ uploadTarget=null; $('#quizInput').click(); });
 
   async function addQuestionsToSubject(sub, qs){
-    const seen=new Set(sub.questions.map(qKey));
-    const now=Date.now(); let added=0, dup=0, noAns=0;
-    qs.forEach(q=>{ const k=qKey(q); if(seen.has(k)){dup++;return;} seen.add(k);
+    const idx=new Map(); sub.questions.forEach(q=> idx.set(qKey(q), q));
+    const now=Date.now(); let added=0, dup=0, noAns=0, upd=0;
+    qs.forEach(q=>{ const k=qKey(q); const ex=idx.get(k);
+      if(ex){ dup++;
+        const n=String(q.note||'').trim();
+        if(n && n!==String(ex.note||'').trim()){ ex.note=n; upd++; }   // câu đã có -> bổ sung/cập nhật ghi chú
+        return; }
+      idx.set(k,q);
       if(!q.correct || !q.correct.length) noAns++;
       sub.questions.push({...q, addedAt:now}); added++; });
     await subjectPut(sub);
     subjects=await subjectsAll();
-    toast(`Đã thêm ${added} câu vào “${sub.name}”${dup?`, bỏ ${dup} trùng`:''}.`);
+    toast(`Đã thêm ${added} câu vào “${sub.name}”${dup?`, bỏ ${dup} trùng`:''}${upd?`, bổ sung ghi chú cho ${upd} câu`:''}.`);
     if(noAns>0) setTimeout(()=> modalConfirm({title:`${noAns}/${added} câu chưa có đáp án đúng`, message:`Trong file vừa nạp, ${noAns} câu chưa xác định được đáp án đúng — thường do ô "Đáp án đúng" trong Excel bị bỏ trống, hoặc ghi theo kiểu chương trình chưa nhận ra. Các câu này khi thi/ôn sẽ không có đáp án để chấm. Bạn nên bổ sung cột đáp án đúng trong file rồi nạp lại. Vẫn giữ các câu này chứ?`, ok:'Đã hiểu, giữ lại', cancel:'Để tôi sửa file'}), 400);
   }
 
@@ -1531,12 +1549,13 @@
         <div class="map-row"><label>Đáp án 3</label><select id="s_a3">${opt(m.a3)}</select></div>
         <div class="map-row"><label>Đáp án 4</label><select id="s_a4">${opt(m.a4)}</select></div>
         <div class="map-row"><label>Đáp án đúng</label><select id="s_correct">${opt(m.correct)}</select></div>
+        <div class="map-row"><label>Ghi chú / trích dẫn</label><select id="s_note">${opt(m.note)}</select></div>
       </div>
       <p class="hint">Xem trước: <b>${previewCount}</b> câu sẽ được nạp. Đáp án đúng ghi bằng số (1–4), chữ (A–D) hoặc chính nội dung đáp án.</p>
       <div class="mapbox-actions"><button class="btn btn-primary btn-block" id="mapApply">${tgt?'Nạp vào môn':'Tiếp tục · chọn môn'}</button></div>`;
     $('#mapClose').onclick=()=>{ pending=null; uploadTarget=null; $('#mapBox').hidden=true; };
-    const refresh=()=>{ const g=id=>Number($('#'+id).value); pending.mapping={stt:g('s_stt'),q:g('s_q'),a1:g('s_a1'),a2:g('s_a2'),a3:g('s_a3'),a4:g('s_a4'),correct:g('s_correct')}; renderMapping(); };
-    ['s_stt','s_q','s_a1','s_a2','s_a3','s_a4','s_correct'].forEach(id=> $('#'+id).onchange=refresh);
+    const refresh=()=>{ const g=id=>Number($('#'+id).value); pending.mapping={stt:g('s_stt'),q:g('s_q'),a1:g('s_a1'),a2:g('s_a2'),a3:g('s_a3'),a4:g('s_a4'),correct:g('s_correct'),note:g('s_note')}; renderMapping(); };
+    ['s_stt','s_q','s_a1','s_a2','s_a3','s_a4','s_correct','s_note'].forEach(id=> $('#'+id).onchange=refresh);
     $('#hdrChk').onchange=e=>{ pending.headerRow=e.target.checked; pending.mapping=autoDetect(headersOf(pending.matrix,pending.headerRow)); renderMapping(); };
     $('#mapApply').onclick=async ()=>{
       const m2=pending.mapping;
@@ -1686,17 +1705,31 @@
   }
 
   /* ================= EXAM / PRACTICE ENGINE ================= */
-  let examMode='exam', selSubjects=new Set(), practiceShuffle=true, practiceInstant=true, examInstant=true, selInit=false;
+  let examMode='exam', selSubjects=new Set(), practiceShuffle=true, practiceInstant=true, examInstant=true, examNoShuffle=false, selInit=false;
   function sample(arr,n){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a.slice(0,Math.max(0,n)); }
   function shuffle(arr){ return sample(arr, arr.length); }
   async function getLastExamMap(){ const m=await metaGet('lastExam'); return (m&&m.value)||{}; }
   async function setLastExamKeys(key, keys){ const m=await getLastExamMap(); m[key]=keys; await metaSet('lastExam', m); }
   function poolForSubjects(ids){ const set=new Set(ids); const all=[]; subjects.forEach(s=>{ if(set.has(s.id)) s.questions.forEach(q=>all.push(q)); }); return all; }
 
-  function buildExamQuestions(rawList){
+  // Câu có đáp án dạng "Đáp án 1 và 2", "Cả 1 và 3", "Tất cả đáp án trên" -> phải giữ nguyên thứ tự
+  function mustKeepOrder(answers){
+    return (answers||[]).some(a=>{
+      const t=noAccent(a);
+      if(!t) return false;
+      if(/\b(tat ca|toan bo)\b/.test(t)) return true;                 // "tất cả đáp án trên"
+      if(/(dap an|phuong an|y|cau)\s*[1-9]/.test(t)) return true;      // "đáp án 1", "phương án 2"
+      if(/\bca\s*[1-9a-d]\b/.test(t)) return true;                    // "cả 1", "cả a"
+      if(/[1-9]\s*(va|hoac|,|&)\s*[1-9]/.test(t)) return true;         // "1 và 2", "1, 3"
+      if(/\b[a-d]\s*(va|hoac|&)\s*[a-d]\b/.test(t)) return true;      // "a và b"
+      return false;
+    });
+  }
+  function buildExamQuestions(rawList, noShuffle){
     return rawList.map(q=>{
       const opts=q.answers.map((t,i)=>({text:t, correct:q.correct.includes(i)})).filter(o=>o.text!=='');
-      return {stt:q.stt, question:q.question, key:qKey(q), opts:shuffle(opts)};   // shuffle answer positions
+      const keep = noShuffle || mustKeepOrder(q.answers);
+      return {stt:q.stt, question:q.question, note:q.note||'', key:qKey(q), opts: keep? opts : shuffle(opts)};
     });
   }
   function pickExamRaw(pool, prevKeys){
@@ -1721,10 +1754,10 @@
     if(mode==='exam'){
       const lastMap=await getLastExamMap();
       const raw=pickExamRaw(pool, lastMap[key]);
-      exam={ mode:'exam', instant:examInstant, ids, key, sourceName, questions:buildExamQuestions(raw), answers:{}, visited:{}, idx:0, startedAt:Date.now(), deadline:Date.now()+EXAM_MIN*60000, submitted:false, timerId:null };
+      exam={ mode:'exam', instant:examInstant, ids, key, sourceName, questions:buildExamQuestions(raw, examNoShuffle), answers:{}, visited:{}, idx:0, startedAt:Date.now(), deadline:Date.now()+EXAM_MIN*60000, submitted:false, timerId:null };
     } else {
-      let raw=pool.slice(); if(practiceShuffle) raw=shuffle(raw);
-      exam={ mode:'practice', instant:practiceInstant, ids, key, sourceName, questions:buildExamQuestions(raw), answers:{}, visited:{}, idx:0, startedAt:Date.now(), deadline:null, submitted:false, timerId:null };
+      let raw=pool.slice();   // ôn tập: giữ nguyên thứ tự câu hỏi như trong file
+      exam={ mode:'practice', instant:practiceInstant, ids, key, sourceName, questions:buildExamQuestions(raw, true), answers:{}, visited:{}, idx:0, startedAt:Date.now(), deadline:null, submitted:false, timerId:null };
     }
     await persistExam();
     updateExamBadge();
@@ -1801,17 +1834,18 @@
         </div>
         <div class="pool-line ${selSubjects.size?'':'warn-txt'}">${selSubjects.size? `Đã chọn <b>${pool.length}</b> câu từ ${selSubjects.size} môn` : 'Chưa chọn môn nào — hãy tích chọn ít nhất một môn ở trên.'}</div>
         <ul class="ex-facts">${facts}</ul>
-        ${examMode==='practice'?`<label class="mini"><input type="checkbox" id="pracShuf" ${practiceShuffle?'checked':''}> Xáo trộn thứ tự câu hỏi</label><label class="mini"><input type="checkbox" id="pracInstant" ${practiceInstant?'checked':''}> Hiện đúng/sai ngay khi trả lời</label>`:''}
-        ${examMode==='exam'?`<label class="mini"><input type="checkbox" id="examInstant" ${examInstant?'checked':''}> Hiện đúng/sai ngay khi trả lời (tự ôn)</label>`:''}
+        ${examMode==='practice'?`<label class="mini"><input type="checkbox" id="pracInstant" ${practiceInstant?'checked':''}> Hiện đúng/sai ngay khi trả lời</label>`:''}
+        ${examMode==='exam'?`<label class="mini"><input type="checkbox" id="examInstant" ${examInstant?'checked':''}> Hiện đúng/sai ngay khi trả lời (tự ôn)</label><label class="mini"><input type="checkbox" id="examNoShuffle" ${examNoShuffle?'checked':''}> Không đảo vị trí đáp án</label>`:''}
+        ${examMode==='practice'?`<p class="hint" style="margin-top:2px">Ôn tập giữ nguyên <b>thứ tự câu hỏi và thứ tự đáp án</b> như trong file.</p>`:''}
         <div id="poolNote" class="ex-note"></div>
         <button class="btn btn-primary btn-block btn-lg" id="startBtn" ${selSubjects.size?'':'disabled'}>${examMode==='exam'?'Bắt đầu thi':'Bắt đầu ôn'}</button>
       </div>
       ${arr.length?`<div class="hist"><div class="hist-h">Lịch sử gần đây</div>${arr.map(h=>`<div class="hist-row"><span class="hist-name">${esc(h.name)}${h.mode==='practice'?' · ôn':''}</span><span class="hist-score">${Math.round(h.correct/h.total*100)}đ</span><span class="hist-sub">${h.correct}/${h.total} · ${fmtDate(h.at)}</span></div>`).join('')}</div>`:''}`;
     area.querySelectorAll('.mode-btn').forEach(b=> b.onclick=()=>{ examMode=b.dataset.mode; renderExam(); });
     area.querySelectorAll('.sc-chk').forEach(c=> c.onchange=()=>{ const id=Number(c.dataset.id); if(c.checked) selSubjects.add(id); else selSubjects.delete(id); renderExam(); });
-    const ps=$('#pracShuf'); if(ps) ps.onchange=e=> practiceShuffle=e.target.checked;
     const pi=$('#pracInstant'); if(pi) pi.onchange=e=> practiceInstant=e.target.checked;
     const ei=$('#examInstant'); if(ei) ei.onchange=e=> examInstant=e.target.checked;
+    const ens=$('#examNoShuffle'); if(ens) ens.onchange=e=> examNoShuffle=e.target.checked;
     const note=$('#poolNote');
     if(examMode==='exam'){ if(pool.length<EXAM_SIZE) note.innerHTML=`<span class="warn-txt">Chỉ có ${pool.length} câu (nhỏ hơn ${EXAM_SIZE}). Đề sẽ gồm ${pool.length} câu.</span>`; else note.textContent=`Đủ tạo đề ${EXAM_SIZE} câu.`; }
     else { note.textContent=`Bạn sẽ lần lượt trả lời ${pool.length} câu, có thể bỏ qua câu chưa nhớ.`; }
@@ -1862,8 +1896,17 @@
   }
 
   /* ---- Bảng số thứ tự câu (bên phải) ---- */
+  function noteHtml(q){
+    const n=(q&&q.note)? String(q.note).trim() : '';
+    return n? `<div class="q-note">${esc(n)}</div>` : '';
+  }
   function palState(i){
-    if(exam.answers[i]!=null) return 'done';
+    const a=exam.answers[i];
+    if(a!=null){
+      if(!exam.instant) return 'done';                       // chưa lộ đúng/sai -> chỉ đánh dấu đã làm
+      const q=exam.questions[i];
+      return (q && q.opts[a] && q.opts[a].correct) ? 'done' : 'wrong';
+    }
     if(exam.visited && exam.visited[i]) return 'skip';
     return '';
   }
@@ -1873,7 +1916,7 @@
       return `<button class="pal-cell ${palState(i)}${cur}" data-i="${i}">${i+1}</button>`;
     }).join('');
     return `<div class="pal-h">Danh sách câu</div><div class="pal-grid">${cells}</div>
-      <div class="pal-legend"><span><i class="lg done"></i>Đã làm</span><span><i class="lg skip"></i>Bỏ qua</span><span><i class="lg"></i>Chưa tới</span></div>`;
+      <div class="pal-legend"><span><i class="lg done"></i>Đúng</span><span><i class="lg wrong"></i>Sai</span><span><i class="lg skip"></i>Bỏ qua</span><span><i class="lg"></i>Chưa tới</span></div>`;
   }
   function wirePalette(){
     document.querySelectorAll('.pal-cell').forEach(b=> b.onclick=()=>{
@@ -1931,16 +1974,16 @@
       </div>
       <div class="exam-layout">
         <div class="prac-main">
+          <div class="prac-nav">
+            <button class="btn btn-ghost" id="exPrev" ${i===0?'disabled':''}>‹ Câu trước</button>
+            <button class="btn btn-primary" id="exNext">${last?'Nộp bài':'Câu tiếp theo ›'}</button>
+          </div>
           <div class="prac-bar"><div class="prac-fill" style="width:${Math.round((i+1)/qs.length*100)}%"></div></div>
           <article class="exam-q" id="eq${i}">
             <div class="eq-head"><span class="eq-no">Câu ${i+1}</span></div>
             <p class="eq-text">${esc(q.question)}</p>
             ${examQuestionInner(q,i)}
           </article>
-          <div class="prac-nav">
-            <button class="btn btn-ghost" id="exPrev" ${i===0?'disabled':''}>‹ Câu trước</button>
-            <button class="btn btn-primary" id="exNext">${last?'Nộp bài':'Câu tiếp theo ›'}</button>
-          </div>
         </div>
         <aside class="palette" id="palette">${paletteHtml()}</aside>
       </div>`;
@@ -2014,6 +2057,11 @@
       <div class="prac-bar"><div class="prac-fill" style="width:${Math.round((i+1)/qs.length*100)}%"></div></div>
       <div class="exam-layout">
       <div class="prac-main">
+      <div class="prac-nav">
+        <button class="btn btn-ghost" id="pracPrev" ${i===0?'disabled':''}>‹ Trước</button>
+        <button class="btn btn-ghost" id="pracSkip">Bỏ qua</button>
+        <button class="btn btn-primary" id="pracNext">${i===qs.length-1?'Xong ›':'Sau ›'}</button>
+      </div>
       <article class="exam-q">
         <div class="eq-head"><span class="eq-no">Câu ${i+1}</span>${answered&&!reveal?'<span class="eq-done">đã chọn</span>':''}</div>
         <p class="eq-text">${esc(q.question)}</p>
@@ -2025,12 +2073,8 @@
           return `<button class="${cls}" data-o="${oi}" ${reveal?'disabled':''}><span class="eq-key">${letters[oi]}</span><span class="eq-otext">${esc(o.text)}</span>${mark}</button>`;
         }).join('')}</div>
         ${reveal?`<div class="fb ${isRight?'ok':'no'}">${isRight?'✓ Chính xác!':('✗ Chưa đúng — đáp án đúng là '+(letters[correctIdx]||'—'))}</div>`:''}
+        ${noteHtml(q)}
       </article>
-      <div class="prac-nav">
-        <button class="btn btn-ghost" id="pracPrev" ${i===0?'disabled':''}>‹ Trước</button>
-        <button class="btn btn-ghost" id="pracSkip">Bỏ qua</button>
-        <button class="btn btn-primary" id="pracNext">${i===qs.length-1?'Xong ›':'Sau ›'}</button>
-      </div>
       </div>
       <aside class="palette" id="palette">${paletteHtml()}</aside>
       </div>`;
@@ -2071,7 +2115,7 @@
             <p class="rev-text">${esc(q.question)}</p>
             <div class="rev-opts">${q.opts.map((o,oi)=>{ const isSel=sel===oi, isCor=o.correct;
               return `<div class="rev-opt ${isCor?'cor':''} ${isSel&&!isCor?'wrong':''}"><span class="rev-key">${letters[oi]}</span><span class="rev-otext">${esc(o.text)}</span>${isCor?'<span class="rev-flag">✓ đúng</span>':(isSel?'<span class="rev-flag x">✗ bạn chọn</span>':'')}</div>`;
-            }).join('')}</div>
+            }).join('')}</div>${noteHtml(q)}
           </article>`;
         }).join('')}
       </div>`;
@@ -2229,9 +2273,10 @@
         [...resolveCorrect(String(v==null?'':v), answers)].forEach(i=> set.add(i));
       }
     });
+    const note=String(q.note ?? q.ghichu ?? q.ghi_chu ?? q.trichdan ?? q.trich_dan ?? q.source ?? '').trim();
     const stt=String(q.stt ?? q.STT ?? q.no ?? '').trim();
     const addedAt=Number(q.addedAt)||0;
-    return {stt, question, answers, correct:[...set].filter(i=>i>=0&&i<answers.length), addedAt: addedAt||Date.now()};
+    return {stt, question, answers, note, correct:[...set].filter(i=>i>=0&&i<answers.length), addedAt: addedAt||Date.now()};
   }
   function parseQuizJSON(obj){
     let list=[];
@@ -2257,7 +2302,7 @@
       format:'vbtn-quiz', version:1, exportedAt:Date.now(),
       subjects:list.map(s=>({
         name:s.name,
-        questions:s.questions.map(q=>({ stt:q.stt||'', question:q.question, answers:q.answers, correct:q.correct, addedAt:q.addedAt||null }))
+        questions:s.questions.map(q=>({ stt:q.stt||'', question:q.question, answers:q.answers, correct:q.correct, note:q.note||'', addedAt:q.addedAt||null }))
       }))
     };
   }
@@ -2327,9 +2372,11 @@
     for(const s of parsed){
       let sub=subjects.find(x=> noAccent(x.name)===noAccent(s.name));
       if(!sub){ const id=await subjectAdd({name:s.name, questions:[], createdAt:Date.now()}); subjects=await subjectsAll(); sub=subjects.find(x=>x.id===id); newSub++; }
-      const seen=new Set(sub.questions.map(qKey));
+      const idx=new Map(); sub.questions.forEach(x=> idx.set(qKey(x), x));
       let added=0, dup=0;
-      s.questions.forEach(q=>{ const k=qKey(q); if(seen.has(k)){dup++;return;} seen.add(k); if(!q.correct||!q.correct.length) noAns++; sub.questions.push(q); added++; });
+      s.questions.forEach(q=>{ const k=qKey(q); const ex=idx.get(k);
+        if(ex){ dup++; const n=String(q.note||'').trim(); if(n && n!==String(ex.note||'').trim()) ex.note=n; return; }
+        idx.set(k,q); if(!q.correct||!q.correct.length) noAns++; sub.questions.push(q); added++; });
       await subjectPut(sub); addedAll+=added; dupAll+=dup;
     }
     subjects=await subjectsAll();
