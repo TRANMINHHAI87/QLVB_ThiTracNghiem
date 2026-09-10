@@ -562,6 +562,14 @@
   }
   @media (min-width:1300px){ .ea-config .subj-check{ grid-template-columns:repeat(3,1fr); } }
   @media (min-width:1750px){ .ea-config .subj-check{ grid-template-columns:repeat(4,1fr); } }
+  .build{ font-family:var(--mono); font-size:10.5px; font-weight:800; color:var(--brand-700); background:var(--brand-tint); padding:1px 6px; border-radius:20px; }
+  /* ---- Điện thoại: thẻ môn xếp tên lên trên, nút xuống dưới ---- */
+  @media (max-width:999px){
+    .bank-card{ flex-wrap:wrap; }
+    .bank-main{ flex:1 1 100%; min-width:100%; }
+    .bank-acts{ flex:1 1 100%; justify-content:flex-start; margin-top:8px; }
+    .bank-name{ white-space:normal; }
+  }
 </style>
 </head>
 <body>
@@ -571,7 +579,7 @@
       <span class="mark" aria-hidden="true"></span>
       <div class="brand-txt">
         <strong>Văn bản &amp; Trắc nghiệm <span id="verBadge" class="ver-badge"></span></strong>
-        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại</span>
+        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b10.09-C</b></span>
       </div>
     </div>
     <div id="storeWarn" class="store-warn" hidden>
@@ -723,6 +731,7 @@
   const APP_MODE='online';
   const CAN_EXPORT = (APP_MODE==='offline');
   const REMOTE_FILES=['cauhoi.json','data/cauhoi.json','questions.json'];
+  const DATA_SCHEMA=2;   // tăng số này khi cách đọc dữ liệu thay đổi -> buộc mọi máy nạp lại
 
   const $ = s => document.querySelector(s);
   const esc = s => (s==null?'':String(s)).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -2549,7 +2558,7 @@
     const parsed=parseQuizJSON(found);
     if(!parsed.length){ if(manual) toast('File JSON không có câu hỏi hợp lệ.'); renderOnlineStatus(); return false; }
     const total=parsed.reduce((a,s)=>a+s.questions.length,0);
-    const stamp=JSON.stringify({at:found.exportedAt||0, n:total, names:parsed.map(s=>s.name)});
+    const stamp=JSON.stringify({v:DATA_SCHEMA, at:found.exportedAt||0, n:total, names:parsed.map(s=>s.name)});
     const prev=await metaGet('remoteStamp');
     if(!manual && prev && prev.value===stamp){
       remoteInfo={url:usedUrl, subjects:parsed.length, total, at:found.exportedAt||0};
@@ -2616,7 +2625,7 @@
   async function applyBundle(obj, origin, stampKey, label){
     const parsed=parseQuizJSON(obj); if(!parsed.length) return false;
     const total=parsed.reduce((a,s)=>a+s.questions.length,0);
-    const stamp=JSON.stringify({at:obj.exportedAt||0, n:total, names:parsed.map(s=>s.name)});
+    const stamp=JSON.stringify({v:DATA_SCHEMA, at:obj.exportedAt||0, n:total, names:parsed.map(s=>s.name)});
     const prev=await metaGet(stampKey);
     embeddedInfo={subjects:parsed.length, total, at:obj.exportedAt||0, label};
     if(prev && prev.value===stamp) return false;
