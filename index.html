@@ -540,6 +540,28 @@
     .q-note{ font-size:16px; padding:12px 15px; }
     .ea-single .prac-nav, .ea-practice .prac-nav{ margin-bottom:12px; }
   }
+  /* ---- Phân đợt ---- */
+  .badge-batch{ font-size:10px; font-weight:800; color:#7A4B00; background:#FBF0DD; padding:2px 7px; border-radius:20px; margin-left:7px; vertical-align:middle; }
+  .badge-ref{ font-size:10px; font-weight:800; color:var(--ink-2); background:var(--line-2); padding:2px 7px; border-radius:20px; margin-left:6px; vertical-align:middle; }
+  .batch-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .batch-chips .chip{ appearance:none; cursor:pointer; font:inherit; font-size:12.5px; font-weight:700; padding:6px 12px;
+    border:1.5px solid var(--line); border-radius:20px; background:#fff; color:var(--ink-2); }
+  .batch-chips .chip.on{ background:var(--brand); border-color:var(--brand); color:#fff; }
+  .sc-batch{ font-size:10.5px; font-weight:800; color:#7A4B00; background:#FBF0DD; padding:1px 6px; border-radius:20px; margin-left:6px; }
+  /* ---- Màn cấu hình Thi/Ôn: dàn đều theo bề ngang màn hình ---- */
+  @media (min-width:1000px){
+    .ea-config{ max-width:none; }
+    .ea-config .mode-seg{ max-width:760px; margin-left:auto; margin-right:auto; }
+    .ea-config .subj-check{ display:grid; grid-template-columns:repeat(2,1fr); gap:9px; }
+    .ea-config .exam-config{ padding:20px 22px; }
+    .ea-config .sc-item{ padding:12px 14px; }
+    .ea-config .sc-name{ font-size:15px; }
+    .ea-config .hist{ max-width:none; }
+    .ea-config .ex-facts{ grid-template-columns:repeat(4,1fr); }
+    .ea-config .btn-lg{ max-width:520px; margin-left:auto; margin-right:auto; display:block; }
+  }
+  @media (min-width:1300px){ .ea-config .subj-check{ grid-template-columns:repeat(3,1fr); } }
+  @media (min-width:1750px){ .ea-config .subj-check{ grid-template-columns:repeat(4,1fr); } }
 </style>
 </head>
 <body>
@@ -631,9 +653,17 @@
             Tải câu hỏi (chọn môn sau)
           </button>
           <input id="quizInput" type="file" accept=".xlsx,.xls,.csv,.pdf,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,application/pdf,application/json" hidden>
+          <button class="btn btn-block" id="btnPrune">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
+            Dọn câu trùng ở đợt cũ
+          </button>
           <button class="btn btn-block" id="btnSyncOnline">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 1-9 9 9 9 0 0 1-7.6-4.2M3 12a9 9 0 0 1 9-9 9 9 0 0 1 7.6 4.2"/><path d="M20 4v4h-4M4 20v-4h4"/></svg>
             Tải lại dữ liệu online
+          </button>
+          <button class="btn btn-block" id="btnExportJS" hidden>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9M8 17l4 4 4-4M4 3h16"/></svg>
+            Xuất cauhoi.js (để cạnh file offline)
           </button>
           <button class="btn btn-block" id="btnExportHTML" hidden>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M9 9h6v6H9z"/></svg>
@@ -664,7 +694,7 @@
             <input id="photoInput" type="file" accept="image/*" capture="environment" multiple>
           </label>
           <select id="photoScope" class="field"></select>
-          <p class="hint">Chụp ảnh câu hỏi → công cụ đọc chữ (tiếng Việt) rồi dò trong ngân hàng để tìm đáp án. Lần đầu cần mạng để tải bộ nhận dạng (~vài MB, sau đó máy tự nhớ). Chữ rõ nét, đủ sáng, chụp thẳng sẽ chính xác hơn.</p>
+          <p class="hint"><b>Máy tính:</b> bấm <b>Win + Shift + S</b> để cắt vùng màn hình có câu hỏi, rồi bấm <b>Ctrl + V</b> vào trang này là tự đọc luôn. <b>Điện thoại:</b> chụp ảnh câu hỏi → công cụ đọc chữ (tiếng Việt) rồi dò trong ngân hàng để tìm đáp án. Lần đầu cần mạng để tải bộ nhận dạng (~vài MB, sau đó máy tự nhớ). Chữ rõ nét, đủ sáng, chụp thẳng sẽ chính xác hơn.</p>
         </div>
         <div id="photoArea"></div>
       </div>
@@ -1130,16 +1160,113 @@
     else renderResults();
   });
 
-  $('#quizSearch').addEventListener('input', e=>{ quizQuery=e.target.value; renderResults(); });
-  $('#searchScope').addEventListener('change', e=>{ searchScope = e.target.value==='all'?'all':Number(e.target.value); renderResults(); });
+  let searchTimer=null;
+  $('#quizSearch').addEventListener('input', e=>{
+    const v=e.target.value;
+    clearTimeout(searchTimer);
+    searchTimer=setTimeout(()=>{ quizQuery=v; renderResults(); }, 200);   // chờ ngừng gõ rồi mới tìm
+  });
+  // Dán từ khóa (hoặc bấm Enter) -> tìm xong tự xóa trắng ô nhập, kết quả vẫn giữ
+  function clearSearchBox(){ const el=$('#quizSearch'); if(el) el.value=''; }
+  $('#quizSearch').addEventListener('paste', e=>{
+    const t=(e.clipboardData||window.clipboardData);
+    const txt=t? t.getData('text') : '';
+    if(!txt) return;
+    e.preventDefault();
+    clearTimeout(searchTimer);
+    quizQuery=txt.trim();
+    renderResults();
+    clearSearchBox();
+  });
+  $('#quizSearch').addEventListener('keydown', e=>{
+    if(e.key==='Enter'){ e.preventDefault(); clearTimeout(searchTimer); quizQuery=e.target.value.trim(); renderResults(); clearSearchBox(); }
+  });
+  $('#searchScope').addEventListener('change', e=>{ const v=e.target.value; searchScope = (v==='all'||v.indexOf('batch:')===0)? v : Number(v); renderResults(); });
 
+  // Nhớ đệm để không phải bỏ dấu lại toàn bộ ngân hàng sau mỗi phím gõ
+  const _hay=new WeakMap(), _qk=new WeakMap();
+  function hayOf(q){ let v=_hay.get(q); if(v===undefined){ v=noAccent(q.question)+' \u0001 '+noAccent((q.answers||[]).join(' ')); _hay.set(q,v); } return v; }
+  function qKeyC(q){ let v=_qk.get(q); if(v===undefined){ v=qKey(q); _qk.set(q,v); } return v; }
+  function subjSig(){ return subjects.map(x=> x.id+':'+((x.questions&&x.questions.length)||0)+':'+((x.batch||'')+(x.refOnly?'R':''))).join('|'); }
+  function batchOf(s){ return String((s&&s.batch)||'').trim(); }
+  // Thứ tự đợt: tính theo NĂM trước, rồi tới số đợt.  "Đợt 1 - 2027" mới hơn "Đợt 2 - 2026"
+  function batchRankOf(label){
+    const t=noAccent(label||'');
+    if(!t) return 0;
+    const my=t.match(/(20\d{2}|19\d{2})/);
+    const year=my? parseInt(my[1],10) : 0;
+    let md=t.match(/(?:dot|đot|lan|ky)\s*(\d{1,2})/);
+    if(!md){ const nums=t.replace(/(20\d{2}|19\d{2})/g,' ').match(/(\d{1,2})/); md=nums? [null,nums[1]] : null; }
+    const dot=md? parseInt(md[1],10) : 0;
+    return year*100 + Math.min(dot,99);
+  }
+  function batchRank(s){ return batchRankOf(batchOf(s)); }
+  function qBatch(q){ return String((q&&q.batch)||'').trim(); }
+  function nameKey(s){ return noAccent(s.name||''); }
+  // Xóa hẳn câu ở ĐỢT CŨ nếu đợt MỚI HƠN của cùng môn đã có câu đó
+  async function pruneOldBatches(dry){
+    const groups=new Map();
+    subjects.forEach(s=>{ const k=nameKey(s); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(s); });
+    let removed=0, subs=0, detail=[];
+    for(const list of groups.values()){
+      if(list.length<2) continue;
+      const sorted=list.slice().sort((a,b)=> batchRank(b)-batchRank(a));   // mới nhất đứng trước
+      for(let i=1;i<sorted.length;i++){
+        const s=sorted[i], r=batchRank(s);
+        const newer=sorted.filter((x,j)=> j<i && batchRank(x)>r);
+        if(!newer.length) continue;
+        const keys=new Set(); newer.forEach(x=> (x.questions||[]).forEach(q=> keys.add(qKeyC(q))));
+        const before=s.questions.length;
+        const kept=s.questions.filter(q=> !keys.has(qKeyC(q)));
+        const n=before-kept.length;
+        if(n>0){
+          removed+=n; subs++;
+          detail.push(`${s.name}${batchOf(s)?' ('+batchOf(s)+')':''}: bỏ ${n}`);
+          if(!dry){ s.questions=kept; await subjectPut(s); }
+        }
+      }
+    }
+    if(!dry && removed){ subjects=await subjectsAll(); }
+    return {removed, subs, detail};
+  }
+  async function autoPrune(){
+    const r=await pruneOldBatches(false);
+    if(r.removed) toast(`Đã xóa ${r.removed} câu trùng ở đợt cũ (giữ bản đợt mới nhất).`);
+    return r;
+  }
+
+  // Gộp câu từ nhiều môn: bỏ câu trùng, giữ bản của ĐỢT MỚI NHẤT
+  function dedupPool(list){
+    const ordered=list.slice().sort((a,b)=> batchRank(b)-batchRank(a));
+    const seen=new Set(), out=[];
+    ordered.forEach(s=> (s.questions||[]).forEach(q=>{ const k=qKeyC(q); if(seen.has(k)) return; seen.add(k); out.push(q); }));
+    return out;
+  }
+  let _poolCache={sig:null, scope:null, val:null};
   function poolFor(scope){
-    if(scope==='all'){ const all=[]; subjects.forEach(s=> s.questions.forEach(q=> all.push(q))); return all; }
-    const s=subjects.find(x=>x.id===scope); return s? s.questions.slice() : [];
+    const sig=subjSig(), sc=String(scope);
+    if(_poolCache.val && _poolCache.sig===sig && _poolCache.scope===sc) return _poolCache.val;
+    let list;
+    if(scope==='all') list=subjects.slice();
+    else if(typeof scope==='string' && scope.indexOf('batch:')===0){ const b=scope.slice(6); list=subjects.filter(x=> batchOf(x)===b); }
+    else { const s=subjects.find(x=>x.id===scope); list=s?[s]:[]; }
+    const val=dedupPool(list);
+    _poolCache={sig, scope:sc, val};
+    return val;
   }
   function fillScopeSelect(sel){
     const cur=sel.value;
-    sel.innerHTML=(`<option value="all">Tất cả các môn (gộp)</option>`+subjects.map(s=>`<option value="${s.id}">${esc(s.name)} · ${s.questions.length} câu</option>`).join('')) || `<option value="all">— Chưa có môn —</option>`;
+    const sig=subjSig();
+    if(sel.dataset.sig===sig) return;      // danh sách môn không đổi -> giữ nguyên
+    sel.dataset.sig=sig;
+    const bs=[...new Set(subjects.map(batchOf).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi',{numeric:true}));
+    const opt=x=>`<option value="${x.id}">${esc(x.name)} · ${x.questions.length} câu${x.refOnly?' · chỉ tra cứu':''}</option>`;
+    let html=`<option value="all">Tất cả các môn (gộp, đã bỏ trùng)</option>`;
+    bs.forEach(b=>{ const inB=subjects.filter(x=> batchOf(x)===b);
+      html+=`<optgroup label="${esc(b)}"><option value="batch:${esc(b)}">— Tất cả môn ${esc(b)} —</option>${inB.map(opt).join('')}</optgroup>`; });
+    const rest=subjects.filter(x=> !batchOf(x));
+    if(rest.length) html+= bs.length? `<optgroup label="Chưa phân đợt">${rest.map(opt).join('')}</optgroup>` : rest.map(opt).join('');
+    sel.innerHTML = html;
     if([...sel.options].some(o=>o.value===cur)) sel.value=cur;
   }
 
@@ -1149,16 +1276,17 @@
     if(!subjects.length){ head.hidden=true; cont.innerHTML=`<div class="empty"><h3>Chưa có câu hỏi</h3><p>Vào mục <b>Ngân hàng</b> để tải file câu hỏi theo môn, rồi quay lại đây tra cứu.</p></div>`; return; }
     const pool=poolFor(searchScope);
     const q=noAccent(quizQuery);
-    const matched = q ? pool.filter(it=> noAccent(it.question).includes(q) || it.answers.some(a=>noAccent(a).includes(q))) : pool;
+    const matched = q ? pool.filter(it=> hayOf(it).includes(q)) : pool;
     head.hidden=false;
-    head.textContent = q ? `Tìm thấy ${matched.length}/${pool.length} câu` : `${pool.length} câu hỏi`;
+    head.innerHTML = q ? `Tìm thấy ${matched.length}/${pool.length} câu · từ khóa: <b>${esc(quizQuery.trim())}</b> <button class="link" id="clrQ">xem tất cả</button>` : `${pool.length} câu hỏi`;
+    const cq=$('#clrQ'); if(cq) cq.onclick=()=>{ quizQuery=''; const el=$('#quizSearch'); if(el) el.value=''; renderResults(); };
     if(!matched.length){ cont.innerHTML=`<div class="empty"><h3>Không có kết quả</h3><p>Không có câu hỏi nào chứa “${esc(quizQuery)}”.</p></div>`; return; }
     const show=matched.slice(0,QUIZ_CAP), letters=['A','B','C','D'];
     cont.innerHTML=show.map(it=>{
       const opts=it.answers.map((a,i)=>{ if(!a) return ''; const on=it.correct.includes(i);
         return `<li class="opt ${on?'is-correct':''}"><span class="opt-key">${letters[i]}</span><span class="opt-text">${hi(a,quizQuery)}</span>${on?'<span class="opt-flag">Đáp án đúng</span>':''}</li>`;
       }).join('');
-      return `<article class="q-card"><span class="q-stt">${esc(it.stt||'')}</span><p class="q-text">${hi(it.question,quizQuery)}</p><ul class="opts">${opts}</ul>${noteHtml(it)}</article>`;
+      return `<article class="q-card"><span class="q-stt">${esc(it.stt||'')}</span>${qBatch(it)?`<span class="badge-batch">${esc(qBatch(it))}</span>`:''}<p class="q-text">${hi(it.question,quizQuery)}</p><ul class="opts">${opts}</ul>${noteHtml(it)}</article>`;
     }).join('');
     if(matched.length>QUIZ_CAP) cont.insertAdjacentHTML('beforeend',`<p class="hint" style="text-align:center">Hiển thị ${QUIZ_CAP}/${matched.length} câu — gõ từ khóa để thu hẹp.</p>`);
   }
@@ -1512,20 +1640,37 @@
   });
   $('#btnUpload').addEventListener('click', ()=>{ uploadTarget=null; $('#quizInput').click(); });
 
-  async function addQuestionsToSubject(sub, qs){
+  let lastBatch='';
+  async function askBatch(count){
+    const v=await modalPrompt({title:'Đợt của bộ câu hỏi này',
+      label:`${count} câu sắp nạp. Ghi kèm năm để máy biết đợt nào mới hơn. Để TRỐNG nếu không phân đợt — khi đó câu chỉ dùng để tra cứu, không hiện khi chọn ôn/thi theo đợt.`,
+      value:lastBatch, placeholder:'VD: Đợt 3 - 2026', ok:'Tiếp tục'});
+    if(v===null) return null;
+    lastBatch=String(v||'').trim();
+    return lastBatch;
+  }
+  async function addQuestionsToSubject(sub, qs, batchLabel){
+    const bl=String(batchLabel||'').trim();
+    const nr=batchRankOf(bl);
     const idx=new Map(); sub.questions.forEach(q=> idx.set(qKey(q), q));
-    const now=Date.now(); let added=0, dup=0, noAns=0, upd=0;
+    const now=Date.now(); let added=0, dup=0, noAns=0, upd=0, rep=0;
     qs.forEach(q=>{ const k=qKey(q); const ex=idx.get(k);
       if(ex){ dup++;
-        const n=String(q.note||'').trim();
-        if(n && n!==String(ex.note||'').trim()){ ex.note=n; upd++; }   // câu đã có -> bổ sung/cập nhật ghi chú
+        if(nr>batchRankOf(qBatch(ex))){            // bản của đợt MỚI HƠN -> thay hẳn bản cũ
+          ex.answers=q.answers; ex.correct=q.correct; ex.stt=q.stt||ex.stt;
+          if(q.note) ex.note=q.note;
+          ex.batch=bl; ex.addedAt=now; rep++;
+        } else {
+          const n=String(q.note||'').trim();
+          if(n && n!==String(ex.note||'').trim()){ ex.note=n; upd++; }
+        }
         return; }
       idx.set(k,q);
       if(!q.correct || !q.correct.length) noAns++;
-      sub.questions.push({...q, addedAt:now}); added++; });
+      sub.questions.push({...q, batch:bl, addedAt:now}); added++; });
     await subjectPut(sub);
     subjects=await subjectsAll();
-    toast(`Đã thêm ${added} câu vào “${sub.name}”${dup?`, bỏ ${dup} trùng`:''}${upd?`, bổ sung ghi chú cho ${upd} câu`:''}.`);
+    toast(`Đã thêm ${added} câu${bl?` (${bl})`:''} vào “${sub.name}”${rep?`, thay ${rep} câu bản đợt cũ`:''}${dup-rep>0?`, bỏ ${dup-rep} trùng`:''}${upd?`, bổ sung ghi chú ${upd} câu`:''}.`);
     if(noAns>0) setTimeout(()=> modalConfirm({title:`${noAns}/${added} câu chưa có đáp án đúng`, message:`Trong file vừa nạp, ${noAns} câu chưa xác định được đáp án đúng — thường do ô "Đáp án đúng" trong Excel bị bỏ trống, hoặc ghi theo kiểu chương trình chưa nhận ra. Các câu này khi thi/ôn sẽ không có đáp án để chấm. Bạn nên bổ sung cột đáp án đúng trong file rồi nạp lại. Vẫn giữ các câu này chứ?`, ok:'Đã hiểu, giữ lại', cancel:'Để tôi sửa file'}), 400);
   }
 
@@ -1562,15 +1707,17 @@
       if(m2.q<0||m2.a1<0||m2.a2<0){ toast('Cần chọn cột Câu hỏi và ít nhất Đáp án 1, 2.'); return; }
       const qs=buildQuestionsFrom(pending);
       if(!qs.length){ toast('Không tạo được câu hỏi nào từ file.'); return; }
+      const bl=await askBatch(qs.length);
+      if(bl===null) return;
       if(uploadTarget!=null){
         const sub=subjects.find(s=>s.id===uploadTarget) || await subjectGet(uploadTarget);
-        if(sub){ await addQuestionsToSubject(sub, qs); pending=null; uploadTarget=null; $('#mapBox').hidden=true; renderBank(); return; }
+        if(sub){ await addQuestionsToSubject(sub, qs, bl); pending=null; uploadTarget=null; $('#mapBox').hidden=true; renderBank(); return; }
       }
-      await chooseSubjectAndAdd(qs);
+      await chooseSubjectAndAdd(qs, bl);
     };
   }
 
-  async function chooseSubjectAndAdd(qs){
+  async function chooseSubjectAndAdd(qs, batchLabel){
     let sub=null;
     if(subjects.length){
       const items=subjects.map(s=>({id:s.id, label:s.name, sub:s.questions.length+' câu'}));
@@ -1583,7 +1730,7 @@
       if(!name||!name.trim()) return; const id=await subjectAdd({name:name.trim(), questions:[], createdAt:Date.now()}); sub=await subjectGet(id);
     }
     if(!sub){ toast('Chưa chọn được môn.'); return; }
-    await addQuestionsToSubject(sub, qs);
+    await addQuestionsToSubject(sub, qs, batchLabel);
     pending=null; uploadTarget=null; $('#mapBox').hidden=true; renderBank();
   }
 
@@ -1595,9 +1742,11 @@
     const total=subjects.reduce((s,x)=>s+x.questions.length,0);
     cont.innerHTML=`<div class="bank-sum">${subjects.length} môn · ${total} câu</div>`+subjects.map(s=>`
       <article class="bank-card">
-        <div class="bank-main"><h3 class="bank-name">${esc(s.name)}${s.origin==='remote'?'<span class="badge-on">online</span>':(s.origin==='embedded'?'<span class="badge-emb">kèm file</span>':'')}</h3><div class="bank-meta">${s.questions.length} câu</div></div>
+        <div class="bank-main"><h3 class="bank-name">${esc(s.name)}${s.origin==='remote'?'<span class="badge-on">online</span>':((s.origin==='embedded'||s.origin==='sidecar')?'<span class="badge-emb">kèm file</span>':'')}${batchOf(s)?`<span class="badge-batch">${esc(batchOf(s))}</span>`:''}${s.refOnly?'<span class="badge-ref">chỉ tra cứu</span>':''}</h3><div class="bank-meta">${s.questions.length} câu${(()=>{const m={};s.questions.forEach(q=>{const k=qBatch(q)||'chưa gán đợt';m[k]=(m[k]||0)+1;});const ks=Object.keys(m);return ks.length&&!(ks.length===1&&ks[0]==='chưa gán đợt')?' · '+ks.sort((a,b)=>batchRankOf(b)-batchRankOf(a)).map(k=>`${esc(k)}: ${m[k]}`).join(' · '):'';})()}</div></div>
         <div class="bank-acts">
           <button class="btn btn-sm btn-primary" data-act="up" data-id="${s.id}">Tải câu</button>
+          <button class="btn btn-sm btn-ghost" data-act="batch" data-id="${s.id}">Đợt</button>
+          <button class="btn btn-sm btn-ghost" data-act="ref" data-id="${s.id}">${s.refOnly?'Cho thi lại':'Chỉ tra cứu'}</button>
           <button class="btn btn-sm btn-ghost" data-act="mng" data-id="${s.id}">Sửa câu</button>
           <button class="btn btn-sm btn-ghost" data-act="ren" data-id="${s.id}">Đổi tên</button>
           <button class="btn btn-sm btn-danger" data-act="del" data-id="${s.id}">Xóa</button>
@@ -1608,6 +1757,22 @@
   async function bankAction(act, id){
     const s=subjects.find(x=>x.id===id); if(!s) return;
     if(act==='up'){ uploadTarget=id; $('#quizInput').click(); }
+    else if(act==='batch'){
+      const cur=batchOf(s) || ((s.questions[0]&&s.questions[0].batch)||'');
+      const v=await modalPrompt({title:'Gán đợt cho toàn bộ câu của môn',
+        label:`Môn “${s.name}” có ${s.questions.length} câu. Tất cả sẽ được gán cùng một đợt. Ghi kèm năm (Đợt 1 - 2027 mới hơn Đợt 2 - 2026).`,
+        value:cur, placeholder:'VD: Đợt 3 - 2026', ok:'Gán'});
+      if(v!==null){ const lab=String(v||'').trim(); s.batch=lab; s.questions.forEach(q=> q.batch=lab);
+        await subjectPut(s); subjects=await subjectsAll();
+        toast(lab? `Đã gán “${lab}” cho ${s.questions.length} câu.` : `Đã bỏ đợt cho ${s.questions.length} câu.`);
+        renderBank(); }
+    }
+    else if(act==='ref'){
+      s.refOnly=!s.refOnly; await subjectPut(s); subjects=await subjectsAll();
+      if(s.refOnly) selSubjects.delete(s.id);
+      toast(s.refOnly? `“${s.name}” giờ chỉ dùng để tra cứu, không đưa vào thi/ôn.` : `“${s.name}” đã được đưa lại vào thi/ôn.`);
+      renderBank();
+    }
     else if(act==='mng'){ bankView='manage'; manageSubId=id; manageSel=new Set(); manageQuery=''; manageSort='new'; renderBank(); }
     else if(act==='ren'){ const name=await modalPrompt({title:'Đổi tên môn', value:s.name, placeholder:'Tên môn', ok:'Lưu'}); if(name&&name.trim()){ s.name=name.trim(); await subjectPut(s); subjects=await subjectsAll(); renderBank(); } }
     else if(act==='del'){ const ok=await modalConfirm({title:`Xóa môn “${s.name}”?`, message:`Xóa toàn bộ ${s.questions.length} câu của môn này khỏi công cụ.`, ok:'Xóa', danger:true}); if(ok){ await subjectDelete(id); subjects=await subjectsAll(); renderBank(); } }
@@ -1705,12 +1870,12 @@
   }
 
   /* ================= EXAM / PRACTICE ENGINE ================= */
-  let examMode='exam', selSubjects=new Set(), practiceShuffle=true, practiceInstant=true, examInstant=true, examNoShuffle=false, selInit=false;
+  let examMode='exam', examBatch='all', selSubjects=new Set(), practiceShuffle=true, practiceInstant=true, examInstant=true, examNoShuffle=false, selInit=false;
   function sample(arr,n){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a.slice(0,Math.max(0,n)); }
   function shuffle(arr){ return sample(arr, arr.length); }
   async function getLastExamMap(){ const m=await metaGet('lastExam'); return (m&&m.value)||{}; }
   async function setLastExamKeys(key, keys){ const m=await getLastExamMap(); m[key]=keys; await metaSet('lastExam', m); }
-  function poolForSubjects(ids){ const set=new Set(ids); const all=[]; subjects.forEach(s=>{ if(set.has(s.id)) s.questions.forEach(q=>all.push(q)); }); return all; }
+  function poolForSubjects(ids){ const set=new Set(ids); return dedupPool(subjects.filter(s=> set.has(s.id))); }
 
   // Câu có đáp án dạng "Đáp án 1 và 2", "Cả 1 và 3", "Tất cả đáp án trên" -> phải giữ nguyên thứ tự
   function mustKeepOrder(answers){
@@ -1747,10 +1912,11 @@
   async function startSession(mode){
     const ids=[...selSubjects].filter(id=> subjects.some(s=>s.id===id));
     if(!ids.length){ toast('Hãy chọn ít nhất một môn.'); return; }
-    const pool=poolForSubjects(ids);
-    if(!pool.length){ toast('Các môn đã chọn chưa có câu hỏi.'); return; }
-    const sourceName=ids.map(id=>(subjects.find(s=>s.id===id)||{}).name).filter(Boolean).join(' + ');
-    const key='src:'+ids.slice().sort((a,b)=>a-b).join(',');
+    let pool=poolForSubjects(ids);
+    if(examBatch!=='all') pool=pool.filter(q=> qBatch(q)===examBatch);
+    if(!pool.length){ toast('Không có câu hỏi nào trong phạm vi đã chọn.'); return; }
+    const sourceName=ids.map(id=>(subjects.find(s=>s.id===id)||{}).name).filter(Boolean).join(' + ')+(examBatch!=='all'?' · '+examBatch:'');
+    const key='src:'+ids.slice().sort((a,b)=>a-b).join(',')+'|'+examBatch;
     if(mode==='exam'){
       const lastMap=await getLastExamMap();
       const raw=pickExamRaw(pool, lastMap[key]);
@@ -1814,11 +1980,17 @@
     if(exam && !exam.submitted && exam.askResume){ renderResumeCard(); return; }
     if(exam && !exam.submitted){ if(exam.mode==='practice') renderPracticeTaking(); else renderExamTaking(); return; }
     if(exam && exam.submitted){ renderExamResult(); return; }
-    const validIds=new Set(subjects.map(s=>s.id));
+    const usable=subjects.filter(s=> !s.refOnly);
+    const shown=usable;
+    const validIds=new Set(shown.map(s=>s.id));
     [...selSubjects].forEach(id=>{ if(!validIds.has(id)) selSubjects.delete(id); });
-    if(!selInit){ if(!selSubjects.size) selSubjects.add(subjects[0].id); selInit=true; }   // chi goi y lan dau; sau do ton trong lua chon nguoi dung
+    if(!selInit){ if(!selSubjects.size && shown.length) selSubjects.add(shown[0].id); selInit=true; }   // chi goi y lan dau; sau do ton trong lua chon nguoi dung
     const hist=await metaGet('examHistory'); const arr=(hist&&hist.value)||[];
-    const pool=poolForSubjects([...selSubjects]);
+    const poolAll=poolForSubjects([...selSubjects]);
+    const batches=[...new Set(poolAll.map(qBatch).filter(Boolean))].sort((a,b)=> batchRankOf(b)-batchRankOf(a));
+    if(examBatch!=='all' && batches.indexOf(examBatch)<0) examBatch='all';
+    const pool = examBatch==='all'? poolAll : poolAll.filter(q=> qBatch(q)===examBatch);
+    const noBatch = poolAll.filter(q=> !qBatch(q)).length;
     const facts = examMode==='exam'
       ? `<li><b>${EXAM_SIZE}</b> câu/đề</li><li><b>${EXAM_MIN}</b> phút</li><li>Thang <b>100</b>đ</li><li>Lặp <b>30%</b> đề trước</li>`
       : `<li><b>${pool.length}</b> câu (làm hết)</li><li><b>Không</b> giới hạn giờ</li><li>Được <b>bỏ qua</b></li><li>Xem lại cuối bài</li>`;
@@ -1829,10 +2001,13 @@
       </div>
       <div class="exam-config">
         <div class="cfg-label">Chọn môn để ${examMode==='exam'?'thi':'ôn'} (có thể chọn nhiều môn để trộn)</div>
+        ${batches.length?`<div class="batch-chips">${['all'].concat(batches).map(b=>`<button class="chip ${examBatch===b?'on':''}" data-batch="${esc(b)}">${b==='all'?`Tất cả đợt (${poolAll.length})`:esc(b)+` (${poolAll.filter(q=>qBatch(q)===b).length})`}</button>`).join('')}</div>`:''}
         <div class="subj-check">
-          ${subjects.map(s=>`<label class="sc-item ${selSubjects.has(s.id)?'on':''}"><input type="checkbox" class="sc-chk" data-id="${s.id}" ${selSubjects.has(s.id)?'checked':''}><span class="sc-name">${esc(s.name)}</span><span class="sc-cnt">${s.questions.length}</span></label>`).join('')}
+          ${shown.map(s=>`<label class="sc-item ${selSubjects.has(s.id)?'on':''}"><input type="checkbox" class="sc-chk" data-id="${s.id}" ${selSubjects.has(s.id)?'checked':''}><span class="sc-name">${esc(s.name)}${batchOf(s)?`<span class="sc-batch">${esc(batchOf(s))}</span>`:''}</span><span class="sc-cnt">${s.questions.length}</span></label>`).join('')}
         </div>
-        <div class="pool-line ${selSubjects.size?'':'warn-txt'}">${selSubjects.size? `Đã chọn <b>${pool.length}</b> câu từ ${selSubjects.size} môn` : 'Chưa chọn môn nào — hãy tích chọn ít nhất một môn ở trên.'}</div>
+        ${subjects.length-usable.length? `<p class="hint">${subjects.length-usable.length} môn đang đặt “chỉ tra cứu” nên không hiện ở đây.</p>`:''}
+        ${noBatch&&examBatch!=='all'? `<p class="hint">${noBatch} câu chưa gán đợt nên không nằm trong đợt đang chọn (vẫn tra cứu được).</p>`:''}
+        <div class="pool-line ${selSubjects.size?'':'warn-txt'}">${selSubjects.size? `Đã chọn <b>${pool.length}</b> câu từ ${selSubjects.size} môn (đã bỏ câu trùng)` : 'Chưa chọn môn nào — hãy tích chọn ít nhất một môn ở trên.'}</div>
         <ul class="ex-facts">${facts}</ul>
         ${examMode==='practice'?`<label class="mini"><input type="checkbox" id="pracInstant" ${practiceInstant?'checked':''}> Hiện đúng/sai ngay khi trả lời</label>`:''}
         ${examMode==='exam'?`<label class="mini"><input type="checkbox" id="examInstant" ${examInstant?'checked':''}> Hiện đúng/sai ngay khi trả lời (tự ôn)</label><label class="mini"><input type="checkbox" id="examNoShuffle" ${examNoShuffle?'checked':''}> Không đảo vị trí đáp án</label>`:''}
@@ -1842,6 +2017,7 @@
       </div>
       ${arr.length?`<div class="hist"><div class="hist-h">Lịch sử gần đây</div>${arr.map(h=>`<div class="hist-row"><span class="hist-name">${esc(h.name)}${h.mode==='practice'?' · ôn':''}</span><span class="hist-score">${Math.round(h.correct/h.total*100)}đ</span><span class="hist-sub">${h.correct}/${h.total} · ${fmtDate(h.at)}</span></div>`).join('')}</div>`:''}`;
     area.querySelectorAll('.mode-btn').forEach(b=> b.onclick=()=>{ examMode=b.dataset.mode; renderExam(); });
+    area.querySelectorAll('[data-batch]').forEach(b=> b.onclick=()=>{ examBatch=b.dataset.batch; renderExam(); });
     area.querySelectorAll('.sc-chk').forEach(c=> c.onchange=()=>{ const id=Number(c.dataset.id); if(c.checked) selSubjects.add(id); else selSubjects.delete(id); renderExam(); });
     const pi=$('#pracInstant'); if(pi) pi.onchange=e=> practiceInstant=e.target.checked;
     const ei=$('#examInstant'); if(ei) ei.onchange=e=> examInstant=e.target.checked;
@@ -2138,10 +2314,43 @@
   const OCR_STOP=new Set('la va cua cac mot cho khi thi khi o den tren duoi trong ngoai voi theo tu se da dang co khong nao gi hay hoac nhu boi vi do nay kia ma nhung neu con nen cung deu chi moi ra vao le phai duoc bi cai nguoi sau khi truoc thi cau hoi dap an'.split(' '));
   function ocrTokens(str){ return noAccent(str).replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(t=> t.length>=2 && !OCR_STOP.has(t)); }
 
+  function _b64u8(b64){ const s=atob(b64); const a=new Uint8Array(s.length); for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i); return a; }
+  function _b64txt(b64){ return new TextDecoder().decode(_b64u8(b64)); }
+  // Bộ OCR chạy hoàn toàn OFFLINE: gộp core + bộ chữ + worker vào một worker duy nhất
+  async function ocrWorkerOffline(A){
+    const libURL=URL.createObjectURL(new Blob([_b64u8(A.lib)],{type:'text/javascript'}));
+    if(typeof Tesseract==='undefined'){
+      await new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=libURL; s.onload=res; s.onerror=rej; document.head.appendChild(s); });
+    }
+    const shim = "\n;(function(){var L=" + JSON.stringify(A.lang) + ";\n"
+      + "function u8(b){var s=atob(b),a=new Uint8Array(s.length);for(var i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a;}\n"
+      + "var _i=self.importScripts.bind(self);\n"
+      + "self.importScripts=function(){var k=[].slice.call(arguments).filter(function(x){return !/core/i.test(String(x));});return k.length?_i.apply(null,k):undefined;};\n"
+      + "var _f=self.fetch?self.fetch.bind(self):null;\n"
+      + "self.fetch=function(u,o){var s=String(u);if(/traineddata/i.test(s)){return Promise.resolve(new Response(u8(L),{status:200,headers:{'Content-Type':'application/octet-stream'}}));}return _f?_f(u,o):Promise.reject(new Error('offline'));};\n"
+      + "})();\n";
+    const bundle=_b64txt(A.core)+shim+_b64txt(A.worker);
+    const wURL=URL.createObjectURL(new Blob([bundle],{type:'text/javascript'}));
+    return await Tesseract.createWorker('vie',1,{
+      workerPath:wURL, workerBlobURL:false, corePath:'core.js', langPath:'local', gzip:false, cacheMethod:'none',
+      logger:m=>{ if(m.status==='recognizing text' && ocrProgress) ocrProgress(m.progress); } });
+  }
+
   async function ensureOCR(){
     if(ocrWorker) return ocrWorker;
-    if(typeof Tesseract==='undefined') await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
-    ocrWorker=await Tesseract.createWorker('vie', 1, { logger:m=>{ if(m.status==='recognizing text' && ocrProgress) ocrProgress(m.progress); } });
+    if(!window.VBTN_OCR) await loadScriptOnce('ocr-offline.js');      // bộ OCR đặt cạnh file -> chạy không cần mạng
+    if(window.VBTN_OCR && !window.VBTN_OCR.lang){                     // bộ chữ chia nhiều phần: ocr-vie-1.js, -2.js...
+      for(let i=1;i<=12;i++){ const ok=await loadScriptOnce('ocr-vie-'+i+'.js'); if(!ok) break; }
+      if(window.VBTN_OCR_LANG && window.VBTN_OCR_LANG.length) window.VBTN_OCR.lang=window.VBTN_OCR_LANG.join('');
+    }
+    if(window.VBTN_OCR && window.VBTN_OCR.lang){ ocrWorker=await ocrWorkerOffline(window.VBTN_OCR); return ocrWorker; }
+    if(typeof Tesseract==='undefined'){
+      await loadScriptOnce('tesseract.min.js');            // bản đặt cạnh file HTML -> chạy được offline
+      if(typeof Tesseract==='undefined') await loadScript('https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js');
+    }
+    ocrWorker=await Tesseract.createWorker('vie', 1, {
+      cacheMethod:'write',                                  // lưu bộ chữ tiếng Việt vào máy để lần sau khỏi tải
+      logger:m=>{ if(m.status==='recognizing text' && ocrProgress) ocrProgress(m.progress); } });
     return ocrWorker;
   }
   async function ocrImage(file){
@@ -2150,10 +2359,10 @@
     return (text||'').replace(/[ \t]+\n/g,'\n').replace(/\n{2,}/g,'\n').trim();
   }
 
-  $('#photoScope').addEventListener('change', e=>{ photoScope=e.target.value==='all'?'all':Number(e.target.value); renderOcrResults(); });
+  $('#photoScope').addEventListener('change', e=>{ const v=e.target.value; photoScope=(v==='all'||v.indexOf('batch:')===0)? v : Number(v); renderOcrResults(); });
 
-  $('#photoInput').addEventListener('change', async e=>{
-    const files=[...e.target.files]; e.target.value=''; if(!files.length) return;
+  async function runOCR(files){
+    if(!files || !files.length) return;
     if(ocrBusy){ toast('Đang xử lý ảnh trước, chờ chút…'); return; }
     ocrBusy=true;
     const urls=files.map(f=> URL.createObjectURL(f));
@@ -2162,7 +2371,7 @@
         <div class="ocr-thumbs">${urls.map(u=>`<img class="ocr-thumb" src="${u}">`).join('')}</div>
         <div class="ocr-status" id="ocrStatus">Chuẩn bị nhận dạng…</div>
         <div class="prac-bar"><div class="prac-fill" id="ocrBar" style="width:0%"></div></div>
-        <p class="hint">Lần đầu tải bộ nhận dạng tiếng Việt có thể mất 10–30 giây tùy mạng.</p>
+        <p class="hint">Lần đầu nạp bộ nhận dạng mất khoảng 10–30 giây.</p>
       </div>`;
     const setStatus=(t)=>{ const el=$('#ocrStatus'); if(el) el.textContent=t; };
     const setBar=(p)=>{ const el=$('#ocrBar'); if(el) el.style.width=Math.round(p*100)+'%'; };
@@ -2183,9 +2392,20 @@
     }catch(err){
       ocrBusy=false; ocrProgress=null;
       urls.forEach(u=> URL.revokeObjectURL(u));
-      $('#photoArea').innerHTML=`<div class="empty"><h3>Chưa đọc được chữ</h3><p>${esc(err&&err.message?err.message:'Lỗi nhận dạng')}. Có thể do mất mạng khi tải bộ nhận dạng, hoặc ảnh mờ. Bạn vẫn có thể gõ/dán nội dung câu hỏi bên dưới để tìm.</p></div>`;
+      $('#photoArea').innerHTML=`<div class="empty"><h3>Chưa đọc được chữ</h3><p>${esc(err&&err.message?err.message:'Lỗi nhận dạng')}. Muốn dùng không cần mạng: đặt các file <b>ocr-offline.js</b> và <b>ocr-vie-1.js, ocr-vie-2.js…</b> cạnh file HTML này. Nếu không có, lần đầu sẽ cần mạng để tải bộ nhận dạng. Cũng có thể do ảnh mờ. Bạn vẫn có thể gõ/dán nội dung câu hỏi bên dưới để tìm.</p></div>`;
       renderPhotoResult(); // still show editable box for manual entry
     }
+  }
+  $('#photoInput').addEventListener('change', e=>{ const fs=[...e.target.files]; e.target.value=''; runOCR(fs); });
+  // Dán ảnh chụp màn hình: Windows bấm Win+Shift+S để cắt vùng, rồi Ctrl+V vào đây
+  document.addEventListener('paste', e=>{
+    const dt=e.clipboardData; if(!dt) return;
+    const imgs=[...(dt.files||[])].filter(f=> f && f.type && f.type.startsWith('image/'));
+    if(!imgs.length) return;
+    e.preventDefault();
+    const qt=document.querySelector('.tab[data-tab="quiz"]'); if(qt && !qt.classList.contains('is-active')) qt.click();
+    const pt=document.querySelector('.subtab[data-sub="photo"]'); if(pt && curSub!=='photo') pt.click();
+    runOCR(imgs);
   });
 
   function renderPhoto(){
@@ -2274,9 +2494,10 @@
       }
     });
     const note=String(q.note ?? q.ghichu ?? q.ghi_chu ?? q.trichdan ?? q.trich_dan ?? q.source ?? '').trim();
+    const qb=String(q.batch ?? q.dot ?? '').trim();
     const stt=String(q.stt ?? q.STT ?? q.no ?? '').trim();
     const addedAt=Number(q.addedAt)||0;
-    return {stt, question, answers, note, correct:[...set].filter(i=>i>=0&&i<answers.length), addedAt: addedAt||Date.now()};
+    return {stt, question, answers, note, batch:qb, correct:[...set].filter(i=>i>=0&&i<answers.length), addedAt: addedAt||Date.now()};
   }
   function parseQuizJSON(obj){
     let list=[];
@@ -2293,7 +2514,7 @@
       let qs = s.questions ?? s.cauhoi ?? s.items ?? [];
       if(!Array.isArray(qs)) return;
       const norm=qs.map(q=> normalizeQuestion(q, zeroBased)).filter(Boolean);
-      if(norm.length) out.push({name, questions:norm});
+      if(norm.length) out.push({name, batch:String(s.batch||'').trim(), refOnly:!!s.refOnly, questions:norm});
     });
     return out;
   }
@@ -2301,8 +2522,8 @@
     return {
       format:'vbtn-quiz', version:1, exportedAt:Date.now(),
       subjects:list.map(s=>({
-        name:s.name,
-        questions:s.questions.map(q=>({ stt:q.stt||'', question:q.question, answers:q.answers, correct:q.correct, note:q.note||'', addedAt:q.addedAt||null }))
+        name:s.name, batch:s.batch||'', refOnly:!!s.refOnly,
+        questions:s.questions.map(q=>({ stt:q.stt||'', question:q.question, answers:q.answers, correct:q.correct, note:q.note||'', batch:q.batch||'', addedAt:q.addedAt||null }))
       }))
     };
   }
@@ -2336,7 +2557,7 @@
     }
     const all=await subjectsAll();
     for(const s of all){ if(s.origin==='remote') await subjectDelete(s.id); }   // thay bộ dữ liệu online cũ
-    for(const s of parsed){ await subjectAdd({name:s.name, questions:s.questions, createdAt:Date.now(), origin:'remote'}); }
+    for(const s of parsed){ await subjectAdd({name:s.name, batch:s.batch||'', refOnly:!!s.refOnly, questions:s.questions, createdAt:Date.now(), origin:'remote'}); }
     await metaSet('remoteStamp', stamp);
     subjects=await subjectsAll();
     remoteInfo={url:usedUrl, subjects:parsed.length, total, at:found.exportedAt||0};
@@ -2370,8 +2591,8 @@
     if(!parsed.length){ toast('Không tìm thấy câu hỏi hợp lệ trong file JSON.'); return; }
     let newSub=0, addedAll=0, dupAll=0, noAns=0;
     for(const s of parsed){
-      let sub=subjects.find(x=> noAccent(x.name)===noAccent(s.name));
-      if(!sub){ const id=await subjectAdd({name:s.name, questions:[], createdAt:Date.now()}); subjects=await subjectsAll(); sub=subjects.find(x=>x.id===id); newSub++; }
+      let sub=subjects.find(x=> noAccent(x.name)===noAccent(s.name) && batchOf(x)===String(s.batch||'').trim());
+      if(!sub){ const id=await subjectAdd({name:s.name, batch:String(s.batch||'').trim(), refOnly:!!s.refOnly, questions:[], createdAt:Date.now()}); subjects=await subjectsAll(); sub=subjects.find(x=>x.id===id); newSub++; }
       const idx=new Map(); sub.questions.forEach(x=> idx.set(qKey(x), x));
       let added=0, dup=0;
       s.questions.forEach(q=>{ const k=qKey(q); const ex=idx.get(k);
@@ -2392,21 +2613,52 @@
     if(!el) return null;
     try{ const t=(el.textContent||'').trim(); return t? JSON.parse(t) : null; }catch(_){ return null; }
   }
-  async function loadEmbedded(){
-    const obj=readEmbedded(); if(!obj) return false;
+  async function applyBundle(obj, origin, stampKey, label){
     const parsed=parseQuizJSON(obj); if(!parsed.length) return false;
     const total=parsed.reduce((a,s)=>a+s.questions.length,0);
     const stamp=JSON.stringify({at:obj.exportedAt||0, n:total, names:parsed.map(s=>s.name)});
-    const prev=await metaGet('embeddedStamp');
-    embeddedInfo={subjects:parsed.length, total, at:obj.exportedAt||0};
-    if(prev && prev.value===stamp) return false;          // đã nạp rồi, khỏi nạp lại
+    const prev=await metaGet(stampKey);
+    embeddedInfo={subjects:parsed.length, total, at:obj.exportedAt||0, label};
+    if(prev && prev.value===stamp) return false;
     const all=await subjectsAll();
-    for(const s of all){ if(s.origin==='embedded') await subjectDelete(s.id); }
-    for(const s of parsed){ await subjectAdd({name:s.name, questions:s.questions, createdAt:Date.now(), origin:'embedded'}); }
-    await metaSet('embeddedStamp', stamp);
+    for(const s of all){ if(s.origin===origin) await subjectDelete(s.id); }
+    for(const s of parsed){ await subjectAdd({name:s.name, batch:s.batch||'', refOnly:!!s.refOnly, questions:s.questions, createdAt:Date.now(), origin}); }
+    await metaSet(stampKey, stamp);
     subjects=await subjectsAll();
-    toast(`Đã nạp ${total} câu kèm sẵn trong file (${parsed.length} môn).`);
+    toast(`Đã nạp ${total} câu (${parsed.length} môn) từ ${label}.`);
     return true;
+  }
+  function loadScriptOnce(src){
+    return new Promise(res=>{ const s=document.createElement('script'); s.src=src;
+      s.onload=()=>res(true); s.onerror=()=>res(false); document.head.appendChild(s); });
+  }
+  // Đọc cauhoi.js đặt cạnh file HTML — cách DUY NHẤT chạy được khi mở bằng file:// (offline)
+  async function loadSidecar(){
+    if(readEmbedded()) return false;
+    for(const src of ['cauhoi.js','data/cauhoi.js']){
+      await loadScriptOnce(src);
+      if(window.VBTN_DATA) break;
+    }
+    if(!window.VBTN_DATA) return false;
+    return await applyBundle(window.VBTN_DATA, 'sidecar', 'sidecarStamp', 'file cauhoi.js đi kèm');
+  }
+  async function exportSidecarJS(){
+    const all=await subjectsAll();
+    const usable=all.filter(s=> s.questions && s.questions.length);
+    if(!usable.length){ toast('Chưa có môn nào có câu hỏi để xuất.'); return; }
+    const total=usable.reduce((a,s)=>a+s.questions.length,0);
+    const text='window.VBTN_DATA='+JSON.stringify(subjectsToJSON(usable))+';';
+    const blob=new Blob([text],{type:'application/javascript'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download='cauhoi.js';
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+    toast(`Đã xuất cauhoi.js — ${usable.length} môn · ${total} câu. Để cạnh file HTML là máy khác mở lên tự có dữ liệu.`);
+  }
+
+  async function loadEmbedded(){
+    const obj=readEmbedded(); if(!obj) return false;
+    return await applyBundle(obj, 'embedded', 'embeddedStamp', 'dữ liệu kèm sẵn trong file');
   }
 
   async function exportStandaloneHTML(){
@@ -2458,11 +2710,27 @@
     toast(`Đã xuất cauhoi.json — ${usable.length} môn · ${total} câu · ${kb} KB. Đẩy file này lên GitHub Pages cạnh file HTML.`);
   }
 
-  $('#btnSyncOnline').addEventListener('click', ()=> syncRemote(true));
+  $('#btnPrune').addEventListener('click', async ()=>{
+    const r=await pruneOldBatches(true);
+    if(!r.removed){ toast('Không có câu nào trùng giữa các đợt. Lưu ý: chỉ so các môn TRÙNG TÊN nhưng khác đợt.'); return; }
+    const ok=await modalConfirm({title:`Xóa ${r.removed} câu trùng ở đợt cũ?`,
+      message:`Giữ lại bản của đợt mới nhất, xóa hẳn bản cũ để đỡ tốn bộ nhớ.\n\n${r.detail.slice(0,8).join('\n')}${r.detail.length>8?'\n…':''}`,
+      ok:'Xóa', danger:true});
+    if(!ok) return;
+    const d=await pruneOldBatches(false);
+    toast(`Đã xóa ${d.removed} câu trùng ở ${d.subs} môn.`);
+    renderBank();
+  });
+  $('#btnSyncOnline').addEventListener('click', async ()=>{
+    if(await loadSidecar()){ renderBank(); renderOnlineStatus(); return; }
+    syncRemote(true);
+  });
   const expBtn=$('#btnExportJSON');
   if(CAN_EXPORT){ expBtn.hidden=false; expBtn.addEventListener('click', ()=> exportJSON()); }
   const expHtmlBtn=$('#btnExportHTML');
   if(CAN_EXPORT){ expHtmlBtn.hidden=false; expHtmlBtn.addEventListener('click', ()=> exportStandaloneHTML()); }
+  const expJsBtn=$('#btnExportJS');
+  if(CAN_EXPORT){ expJsBtn.hidden=false; expJsBtn.addEventListener('click', ()=> exportSidecarJS()); }
 
   // Đổi kích thước cửa sổ: bài thi chuyển giữa kiểu 'từng câu' (máy tính) và 'cuộn' (điện thoại)
   var lastSingle=null;
@@ -2529,9 +2797,10 @@
     const vb=$('#verBadge');
     if(vb){ vb.textContent = CAN_EXPORT? 'Offline' : 'Online'; vb.className='ver-badge '+(CAN_EXPORT?'off':'on'); }
     await loadEmbedded();      // dữ liệu nhúng sẵn trong file HTML (nếu có)
+    const hadSidecar = await loadSidecar();   // cauhoi.js đặt cạnh file (chạy được cả offline)
     renderResults();
     renderOnlineStatus();
-    syncRemote(false);  // tự đọc cauhoi.json cạnh trang (GitHub Pages)
+    if(!hadSidecar) syncRemote(false);  // cauhoi.json cạnh trang (chỉ chạy khi mở qua web)
   })();
 })();
 </script>
