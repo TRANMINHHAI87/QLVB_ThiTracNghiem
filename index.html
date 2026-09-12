@@ -663,6 +663,10 @@
   .pick-row .nm{ flex:1; font-size:14px }
   .pick-row .ct{ font-family:var(--mono); font-size:12px; color:var(--ink-3) }
   #fxCanvas{ position:fixed; inset:0; pointer-events:none; z-index:60 }
+  .mng-batches{ display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 2px }
+  .chip-btn{ appearance:none; cursor:pointer; font:inherit; font-size:12.5px; font-weight:700; padding:6px 11px;
+    border:1.5px solid var(--line); border-radius:999px; background:#fff; color:var(--ink-2) }
+  .chip-btn.on{ background:var(--brand); border-color:var(--brand); color:#fff }
 </style>
 </head>
 <body>
@@ -672,7 +676,7 @@
       <span class="mark" aria-hidden="true"></span>
       <div class="brand-txt">
         <strong>Văn bản &amp; Trắc nghiệm <span id="verBadge" class="ver-badge"></span></strong>
-        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b12.09-E</b></span>
+        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b12.09-G</b></span>
       </div>
     </div>
     <div id="storeWarn" class="store-warn" hidden>
@@ -962,7 +966,7 @@
   function closeModal(){ overlay.hidden=true; modalEl.innerHTML=''; }
   overlay.addEventListener('click',e=>{ if(e.target===overlay){ closeModal(); if(overlay._onCancel) overlay._onCancel(); } });
 
-  function modalPrompt({title,label='',placeholder='',value='',ok='Lưu'}){
+  function modalPrompt({title,label='',placeholder='',value='',ok='Lưu',allowEmpty=false}){
     return new Promise(res=>{
       overlay._onCancel=()=>res(null);
       modalEl.innerHTML=`<h3>${esc(title)}</h3>${label?`<label class="fl">${esc(label)}</label>`:''}
@@ -970,7 +974,7 @@
         <div class="actions"><button class="btn btn-ghost" data-cancel>Hủy</button><button class="btn btn-primary" data-ok>${esc(ok)}</button></div>`;
       overlay.hidden=false;
       const inp=modalEl.querySelector('input'); setTimeout(()=>{inp.focus(); inp.select();},30);
-      const okFn=()=>{ const v=inp.value.trim(); closeModal(); res(v||null); };
+      const okFn=()=>{ const v=inp.value.trim(); closeModal(); res(allowEmpty? v : (v||null)); };
       modalEl.querySelector('[data-ok]').onclick=okFn;
       modalEl.querySelector('[data-cancel]').onclick=()=>{ closeModal(); res(null); };
       inp.onkeydown=e=>{ if(e.key==='Enter') okFn(); };
@@ -1387,10 +1391,12 @@
 
   // Gộp câu từ nhiều môn: bỏ câu trùng, giữ bản của ĐỢT MỚI NHẤT
   function dedupPool(list){
-    const ordered=list.slice().sort((a,b)=> batchRank(b)-batchRank(a));
-    const seen=new Set(), out=[];
-    ordered.forEach(s=> (s.questions||[]).forEach(q=>{ const k=qKeyC(q); if(seen.has(k)) return; seen.add(k); out.push(q); }));
-    return out;
+    const seen=new Map();
+    list.forEach(s=> (s.questions||[]).forEach(q=>{
+      const k=qKeyC(q), ex=seen.get(k);
+      if(!ex || batchRankOf(qBatch(q))>batchRankOf(qBatch(ex))) seen.set(k,q);   // giữ bản của đợt mới nhất
+    }));
+    return [...seen.values()];
   }
   let _poolCache={sig:null, scope:null, val:null};
   function poolFor(scope){
@@ -1778,7 +1784,7 @@
 
   /* ================= BANK (subjects) ================= */
   let uploadTarget=null;
-  let bankView='list', manageSubId=null, manageSort='new', manageQuery='', manageSel=new Set();
+  let bankView='list', manageSubId=null, manageSort='new', manageQuery='', manageBatch='all', manageSel=new Set();
 
   $('#btnNewSub').addEventListener('click', async ()=>{
     const name=await modalPrompt({title:'Tạo môn mới', label:'Đặt tên kho câu hỏi (VD: Kế Toán, KHCN, Tổng hợp).', placeholder:'Tên môn', ok:'Tạo'});
@@ -1793,8 +1799,8 @@
   let lastBatch='';
   async function askBatch(count){
     const v=await modalPrompt({title:'Đợt của bộ câu hỏi này',
-      label:`${count} câu sắp nạp. Ghi kèm năm để máy biết đợt nào mới hơn. Để TRỐNG nếu không phân đợt — khi đó câu chỉ dùng để tra cứu, không hiện khi chọn ôn/thi theo đợt.`,
-      value:lastBatch, placeholder:'VD: Đợt 3 - 2026', ok:'Tiếp tục'});
+      label:`${count} câu sắp nạp. Ghi kèm năm để máy biết đợt nào mới hơn. Để TRỐNG rồi bấm “Tiếp tục” nếu chưa muốn phân đợt — sau này vào “Sửa câu” lọc “Chưa gán đợt” để gán bổ sung.`,
+      value:lastBatch, placeholder:'VD: Đợt 3 - 2026', ok:'Tiếp tục', allowEmpty:true});
     if(v===null) return null;
     lastBatch=String(v||'').trim();
     return lastBatch;
@@ -1892,10 +1898,9 @@
     const total=subjects.reduce((s,x)=>s+x.questions.length,0);
     cont.innerHTML=`<div class="bank-sum">${subjects.length} môn · ${total} câu</div>`+subjects.map(s=>`
       <article class="bank-card">
-        <div class="bank-main"><h3 class="bank-name">${esc(s.name)}${s.origin==='remote'?'<span class="badge-on">online</span>':((s.origin==='embedded'||s.origin==='sidecar')?'<span class="badge-emb">kèm file</span>':'')}${batchOf(s)?`<span class="badge-batch">${esc(batchOf(s))}</span>`:''}${s.refOnly?'<span class="badge-ref">chỉ tra cứu</span>':''}</h3><div class="bank-meta">${s.questions.length} câu${(()=>{const m={};s.questions.forEach(q=>{const k=qBatch(q)||'chưa gán đợt';m[k]=(m[k]||0)+1;});const ks=Object.keys(m);return ks.length&&!(ks.length===1&&ks[0]==='chưa gán đợt')?' · '+ks.sort((a,b)=>batchRankOf(b)-batchRankOf(a)).map(k=>`${esc(k)}: ${m[k]}`).join(' · '):'';})()}</div></div>
+        <div class="bank-main"><h3 class="bank-name">${esc(s.name)}${s.origin==='remote'?'<span class="badge-on">online</span>':((s.origin==='embedded'||s.origin==='sidecar')?'<span class="badge-emb">kèm file</span>':'')}${s.refOnly?'<span class="badge-ref">chỉ tra cứu</span>':''}</h3><div class="bank-meta">${s.questions.length} câu${(()=>{const m={};s.questions.forEach(q=>{const k=qBatch(q)||'chưa gán đợt';m[k]=(m[k]||0)+1;});const ks=Object.keys(m);return ks.length&&!(ks.length===1&&ks[0]==='chưa gán đợt')?' · '+ks.sort((a,b)=>batchRankOf(b)-batchRankOf(a)).map(k=>`${esc(k)}: ${m[k]}`).join(' · '):'';})()}</div></div>
         <div class="bank-acts">
           <button class="btn btn-sm btn-primary" data-act="up" data-id="${s.id}">Tải câu</button>
-          <button class="btn btn-sm btn-ghost" data-act="batch" data-id="${s.id}">Đợt</button>
           <button class="btn btn-sm btn-ghost" data-act="ref" data-id="${s.id}">${s.refOnly?'Cho thi lại':'Chỉ tra cứu'}</button>
           <button class="btn btn-sm btn-ghost" data-act="mng" data-id="${s.id}">Sửa câu</button>
           <button class="btn btn-sm btn-ghost" data-act="ren" data-id="${s.id}">Đổi tên</button>
@@ -1907,16 +1912,6 @@
   async function bankAction(act, id){
     const s=subjects.find(x=>x.id===id); if(!s) return;
     if(act==='up'){ uploadTarget=id; $('#quizInput').click(); }
-    else if(act==='batch'){
-      const cur=batchOf(s) || ((s.questions[0]&&s.questions[0].batch)||'');
-      const v=await modalPrompt({title:'Gán đợt cho toàn bộ câu của môn',
-        label:`Môn “${s.name}” có ${s.questions.length} câu. Tất cả sẽ được gán cùng một đợt. Ghi kèm năm (Đợt 1 - 2027 mới hơn Đợt 2 - 2026).`,
-        value:cur, placeholder:'VD: Đợt 3 - 2026', ok:'Gán'});
-      if(v!==null){ const lab=String(v||'').trim(); s.batch=lab; s.questions.forEach(q=> q.batch=lab);
-        await subjectPut(s); subjects=await subjectsAll();
-        toast(lab? `Đã gán “${lab}” cho ${s.questions.length} câu.` : `Đã bỏ đợt cho ${s.questions.length} câu.`);
-        renderBank(); }
-    }
     else if(act==='ref'){
       s.refOnly=!s.refOnly; await subjectPut(s); subjects=await subjectsAll();
       if(s.refOnly) selSubjects.delete(s.id);
@@ -1932,6 +1927,8 @@
   function manageFiltered(s){
     const q=noAccent(manageQuery);
     let items=s.questions.map((qq,idx)=>({qq,idx}));
+    if(manageBatch==='none') items=items.filter(o=> !qBatch(o.qq));
+    else if(manageBatch!=='all') items=items.filter(o=> qBatch(o.qq)===manageBatch);
     if(q) items=items.filter(o=> noAccent(o.qq.question).includes(q) || o.qq.answers.some(a=>noAccent(a).includes(q)));
     items.sort((a,b)=>{ const ta=a.qq.addedAt||s.createdAt||0, tb=b.qq.addedAt||s.createdAt||0; return manageSort==='new'? tb-ta : ta-tb; });
     return items;
@@ -1951,11 +1948,18 @@
           <select id="mngSort" class="field field-sm"><option value="new" ${manageSort==='new'?'selected':''}>Mới nạp trước</option><option value="old" ${manageSort==='old'?'selected':''}>Cũ nhất trước</option></select>
           <button class="btn btn-sm btn-ghost" id="mngSelAll">Chọn tất cả</button>
         </div>
-        <p class="hint">Tick chọn các câu (câu sai, câu quá cũ…) rồi Xóa hoặc Chuyển sang môn khác. Sắp “Cũ nhất trước” để tìm câu nạp lâu.</p>
+        ${(()=>{ const bs=[...new Set(s.questions.map(qBatch))]; const has=bs.filter(Boolean).sort((a,b)=>batchRankOf(b)-batchRankOf(a));
+          const none=s.questions.filter(x=>!qBatch(x)).length;
+          if(!has.length && !none) return '';
+          const mk=(v,lab,n)=>`<button class="chip-btn ${manageBatch===v?'on':''}" data-mb="${esc(v)}">${lab} (${n})</button>`;
+          return `<div class="mng-batches">${mk('all','Tất cả',s.questions.length)}${has.map(b=>mk(b,esc(b),s.questions.filter(x=>qBatch(x)===b).length)).join('')}${none?mk('none','Chưa gán đợt',none):''}</div>`;
+        })()}
+        <p class="hint">Tick chọn các câu rồi <b>Gán đợt</b>, <b>Chuyển môn</b> hoặc <b>Xóa</b>. Lọc “Chưa gán đợt” để tìm nhanh các câu nạp lên mà chưa phân đợt.</p>
       </div>
       <div id="mngList" class="mng-list"></div>
       <div id="mngBar" class="mng-bar" hidden>
         <span class="mng-selcnt" id="mngSelCnt">0 câu</span>
+        <button class="btn btn-sm btn-primary" id="mngBatch">Gán đợt</button>
         <button class="btn btn-sm btn-ghost" id="mngMove">Chuyển môn</button>
         <button class="btn btn-sm btn-danger" id="mngDel">Xóa</button>
       </div>`;
@@ -1968,6 +1972,8 @@
       renderManageList();
     };
     $('#mngMove').onclick=()=> moveSelected();
+    const mb=$('#mngBatch'); if(mb) mb.onclick=()=> batchSelected();
+    document.querySelectorAll('[data-mb]').forEach(b=> b.onclick=()=>{ manageBatch=b.dataset.mb; manageSel=new Set(); renderManage(); });
     $('#mngDel').onclick=()=> deleteSelected();
     renderManageList();
   }
@@ -1996,6 +2002,19 @@
     s.questions=s.questions.filter((_,i)=> !rm.has(i));
     await subjectPut(s); subjects=await subjectsAll(); manageSel=new Set();
     toast('Đã xóa các câu đã chọn.'); renderManage();
+  }
+  async function batchSelected(){
+    const s=subjects.find(x=>x.id===manageSubId); if(!s||!manageSel.size) return;
+    const cur=(()=>{ const i=[...manageSel][0]; return s.questions[i]? qBatch(s.questions[i]) : ''; })();
+    const v=await modalPrompt({title:`Gán đợt cho ${manageSel.size} câu`,
+      label:'Ghi kèm năm để máy biết đợt nào mới hơn (Đợt 1 - 2027 mới hơn Đợt 2 - 2026). Để trống = bỏ đợt của các câu này.',
+      value:cur, placeholder:'VD: Đợt 3 - 2026', ok:'Gán', allowEmpty:true});
+    if(v===null) return;
+    const lab=String(v||'').trim();
+    [...manageSel].forEach(i=>{ if(s.questions[i]) s.questions[i].batch=lab; });
+    await subjectPut(s); subjects=await subjectsAll(); manageSel=new Set();
+    toast(lab? `Đã gán “${lab}” cho các câu đã chọn.` : 'Đã bỏ đợt cho các câu đã chọn.');
+    renderManage();
   }
   async function moveSelected(){
     const s=subjects.find(x=>x.id===manageSubId); if(!s||!manageSel.size) return;
