@@ -570,6 +570,93 @@
     .bank-acts{ flex:1 1 100%; justify-content:flex-start; margin-top:8px; }
     .bank-name{ white-space:normal; }
   }
+  /* ================= Lớp điều hướng ================= */
+  .navrow{ display:flex; align-items:center; gap:12px; margin-top:10px }
+  .backbtn{ appearance:none; cursor:pointer; font:inherit; font-weight:700; font-size:14px; color:var(--brand-700);
+    background:var(--card); border:1px solid var(--line); border-radius:999px; padding:8px 14px 8px 11px;
+    display:inline-flex; align-items:center; gap:6px; box-shadow:var(--shadow) }
+  .backbtn:active{ transform:translateY(1px) }
+  .navttl{ min-width:0 }
+  .navttl b{ display:block; font-size:15px; line-height:1.25 }
+  .navttl span{ display:block; font-size:12px; color:var(--ink-3) }
+  .shell{ display:block }
+  .shell[hidden]{ display:none !important }
+
+  .hero{ text-align:center; padding:18px 8px 16px }
+  .hero h1{ margin:0 0 6px; font-size:clamp(21px,4.4vw,29px); letter-spacing:-.02em }
+  .hero p{ margin:0; color:var(--ink-2); font-size:14.5px }
+  .mods{ display:grid; gap:16px; grid-template-columns:1fr; max-width:760px; margin:0 auto }
+  @media (min-width:640px){ .mods{ grid-template-columns:1fr 1fr; gap:20px } }
+  .tile{ position:relative; appearance:none; cursor:pointer; font:inherit; color:#fff; text-align:left;
+    border:0; border-radius:20px; padding:20px; aspect-ratio:1/.56; display:flex; flex-direction:column; justify-content:space-between;
+    background:linear-gradient(160deg,#2B838C 0%, var(--brand) 46%, var(--brand-700) 100%);
+    box-shadow:0 1px 0 rgba(255,255,255,.28) inset, 0 -3px 0 rgba(0,0,0,.18) inset,
+      0 10px 18px -6px rgba(21,88,96,.45), 0 22px 40px -18px rgba(20,27,36,.5);
+    transition:transform .14s ease, box-shadow .14s ease, filter .14s ease }
+  @media (min-width:640px){ .tile{ aspect-ratio:1/.92; padding:24px } }
+  .tile:hover{ transform:translateY(-3px) }
+  .tile:active{ transform:translateY(2px) scale(.995) }
+  .tile.lit{ filter:brightness(1.16) saturate(1.05) }
+  .tile:focus-visible{ outline:3px solid #fff; outline-offset:3px }
+  .tile-ico{ width:60px; height:60px; border-radius:17px; display:grid; place-items:center;
+    background:rgba(255,255,255,.16); box-shadow:0 1px 0 rgba(255,255,255,.25) inset }
+  .tile h2{ margin:0 0 4px; font-size:clamp(18px,2.6vw,22px); letter-spacing:-.01em }
+  .tile p{ margin:0; font-size:13.5px; color:rgba(255,255,255,.82); line-height:1.45 }
+  .tile-foot{ display:flex; align-items:center; justify-content:space-between; gap:10px }
+  .tile-count{ font-family:var(--mono); font-size:11.5px; background:rgba(255,255,255,.15); padding:3px 9px; border-radius:999px; flex:none }
+
+  .fns{ display:grid; gap:12px; grid-template-columns:1fr; max-width:1100px; margin:0 auto }
+  @media (min-width:900px){ .fns{ grid-template-columns:repeat(4,1fr); gap:16px } }
+  .fn{ appearance:none; cursor:pointer; font:inherit; text-align:left; color:#fff; border:0; border-radius:16px; padding:16px;
+    display:flex; align-items:center; gap:14px;
+    background:linear-gradient(160deg,#A8283A 0%, #8C1C2B 48%, #6E1322 100%);
+    box-shadow:0 1px 0 rgba(255,255,255,.24) inset, 0 -3px 0 rgba(0,0,0,.2) inset,
+      0 8px 14px -6px rgba(110,19,34,.42), 0 18px 34px -18px rgba(20,27,36,.5);
+    transition:transform .13s ease, box-shadow .13s ease, filter .13s ease }
+  @media (min-width:900px){ .fn{ flex-direction:column; align-items:flex-start; justify-content:space-between; aspect-ratio:1/1; padding:20px } }
+  .fn:nth-child(2){ background:linear-gradient(160deg,#9B2335 0%, #841A28 48%, #66101E 100%) }
+  .fn:nth-child(4){ background:linear-gradient(160deg,#912031 0%, #7A1826 48%, #5E0F1C 100%) }
+  .fn:hover{ transform:translateY(-3px) }
+  .fn:active{ transform:translateY(2px) scale(.996) }
+  .fn.lit{ filter:brightness(1.18) saturate(1.05) }
+  .fn:focus-visible{ outline:3px solid #C9A227; outline-offset:3px }
+  .fn-ico{ width:46px; height:46px; border-radius:13px; display:grid; place-items:center; flex:none;
+    background:rgba(255,255,255,.17); color:#fff; box-shadow:0 1px 0 rgba(255,255,255,.22) inset }
+  @media (min-width:900px){ .fn-ico{ width:54px; height:54px; border-radius:15px } }
+  .fn-txt b{ display:block; font-size:15.5px; margin-bottom:2px }
+  .fn-txt span{ display:block; font-size:12.5px; color:rgba(255,255,255,.8); line-height:1.4 }
+
+  /* tab Thi / Ôn tập kiểu nổi */
+  .mode-seg{ background:transparent; padding:0; gap:10px; max-width:620px; margin-left:auto; margin-right:auto }
+  .mode-btn{ padding:14px 10px; border-radius:14px 14px 10px 10px; border:1px solid var(--line); background:var(--card); color:var(--ink-2);
+    box-shadow:0 1px 0 #fff inset, 0 3px 0 #DFE5EB, 0 10px 18px -12px rgba(20,27,36,.5) }
+  .mode-btn:active{ transform:translateY(2px); box-shadow:0 1px 0 #fff inset, 0 1px 0 #DFE5EB }
+  .mode-btn.on{ color:#fff; border-color:transparent;
+    background:linear-gradient(170deg,#2B838C,var(--brand) 55%,var(--brand-700));
+    box-shadow:0 1px 0 rgba(255,255,255,.25) inset, 0 3px 0 #0F454B, 0 14px 22px -12px rgba(21,88,96,.75) }
+  /* ---- Chọn môn dạng thu gọn ---- */
+  .pick{ position:relative; margin-bottom:12px }
+  .pick-btn{ width:100%; appearance:none; cursor:pointer; font:inherit; text-align:left; background:#fff;
+    border:1.5px solid var(--line); border-radius:var(--radius-sm); padding:12px 14px; display:flex; align-items:center; gap:10px; color:var(--ink) }
+  .pick-btn:hover{ border-color:#CFDDE0 }
+  .pick-btn b{ font-size:14.5px }
+  .pick-btn .sum{ color:var(--ink-3); font-size:12.5px; font-family:var(--mono) }
+  .pick-btn .caret{ margin-left:auto; color:var(--ink-3); transition:transform .15s ease }
+  .pick.open .pick-btn{ border-color:var(--brand) }
+  .pick.open .caret{ transform:rotate(180deg) }
+  .pick-list{ margin-top:8px; border:1px solid var(--line); border-radius:var(--radius-sm); background:#fff;
+    max-height:340px; overflow:auto; box-shadow:var(--shadow) }
+  .pick-tools{ display:flex; gap:8px; padding:10px; border-bottom:1px solid var(--line-2); position:sticky; top:0; background:#fff; z-index:1 }
+  .pick-tools input{ flex:1; border:1.5px solid var(--line); border-radius:8px; padding:8px 10px; font:inherit; font-size:13.5px }
+  .mini-btn{ appearance:none; cursor:pointer; font:inherit; font-size:12.5px; font-weight:700; color:var(--brand-700);
+    background:var(--brand-tint); border:0; border-radius:8px; padding:8px 10px; white-space:nowrap }
+  .pick-row{ display:flex; align-items:center; gap:10px; padding:10px 12px; cursor:pointer; border-bottom:1px solid var(--line-2) }
+  .pick-row:last-child{ border-bottom:0 }
+  .pick-row:hover{ background:var(--line-2) }
+  .pick-row input{ width:18px; height:18px; accent-color:var(--brand); flex:none }
+  .pick-row .nm{ flex:1; font-size:14px }
+  .pick-row .ct{ font-family:var(--mono); font-size:12px; color:var(--ink-3) }
+  #fxCanvas{ position:fixed; inset:0; pointer-events:none; z-index:60 }
 </style>
 </head>
 <body>
@@ -579,11 +666,18 @@
       <span class="mark" aria-hidden="true"></span>
       <div class="brand-txt">
         <strong>Văn bản &amp; Trắc nghiệm <span id="verBadge" class="ver-badge"></span></strong>
-        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b10.09-C</b></span>
+        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b12.09-D</b></span>
       </div>
     </div>
     <div id="storeWarn" class="store-warn" hidden>
       Đang chạy ở chế độ xem thử — dữ liệu <b>sẽ không được lưu</b>. Hãy tải file này về máy và mở bằng trình duyệt điện thoại (Chrome/Safari) để lưu lại.
+    </div>
+    <div class="navrow">
+      <button class="backbtn" id="navBack" hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        Quay lại
+      </button>
+      <div class="navttl"><b id="navTtl">Văn bản &amp; Trắc nghiệm</b><span id="navSub">Chọn phần bạn muốn làm việc</span></div>
     </div>
     <nav class="tabs" role="tablist">
       <button class="tab is-active" data-tab="docs" role="tab">Quản lý Văn bản</button>
@@ -592,6 +686,46 @@
   </header>
 
   <main>
+    <!-- ===== Trang chủ: chọn module ===== -->
+    <section id="shellHome" class="shell">
+      <div class="hero">
+        <h1>Bạn muốn làm gì hôm nay?</h1>
+        <p>Chọn một phần để bắt đầu</p>
+      </div>
+      <div class="mods">
+        <button class="tile" data-shell="docs">
+          <span class="tile-ico"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg></span>
+          <div class="tile-foot"><div><h2>Quản lý Văn bản</h2><p>Mở và tra cứu tài liệu PDF đã lưu</p></div><span class="tile-count" id="cntDocs"></span></div>
+        </button>
+        <button class="tile" data-shell="quizhub">
+          <span class="tile-ico"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l2 2 4-4"/><path d="M21 12a9 9 0 1 1-6.2-8.6"/></svg></span>
+          <div class="tile-foot"><div><h2>Ôn thi trắc nghiệm</h2><p>Tra cứu, ôn tập và thi thử theo đợt</p></div><span class="tile-count" id="cntQuiz"></span></div>
+        </button>
+      </div>
+    </section>
+
+    <!-- ===== Ôn thi: 4 chức năng ===== -->
+    <section id="shellQuiz" class="shell" hidden>
+      <div class="fns">
+        <button class="fn" data-fn="search">
+          <span class="fn-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg></span>
+          <span class="fn-txt"><b>Tra cứu</b><span>Gõ từ khóa, xem ngay đáp án đúng</span></span>
+        </button>
+        <button class="fn" data-fn="exam">
+          <span class="fn-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="9"/></svg></span>
+          <span class="fn-txt"><b>Ôn tập và Thi</b><span>Làm đề 100 câu hoặc ôn hết bộ đề</span></span>
+        </button>
+        <button class="fn" data-fn="photo">
+          <span class="fn-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></span>
+          <span class="fn-txt"><b>Tra cứu bằng ảnh</b><span>Chụp hoặc dán ảnh câu hỏi</span></span>
+        </button>
+        <button class="fn" data-fn="bank">
+          <span class="fn-ico"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 12h18M3 17h18"/></svg></span>
+          <span class="fn-txt"><b>Ngân hàng câu hỏi</b><span>Nạp file, phân đợt, sửa câu</span></span>
+        </button>
+      </div>
+    </section>
+
     <!-- ================= TAB 1: DOCS ================= -->
     <section id="tab-docs" class="panel is-active" role="tabpanel">
       <div class="toolbar">
@@ -720,6 +854,7 @@
 </div>
 
 <div id="overlay" class="overlay" hidden><div class="modal" id="modal"></div></div>
+<canvas id="fxCanvas"></canvas>
 <div id="toast" class="toast" hidden></div>
 
 <script>
@@ -949,7 +1084,7 @@
     if(total){ await metaSet('folderLink', {mode:'picker', name:folderName, at:Date.now()}); renderFolderStatus(); }
     if(added===0 && dup===0){ toast(total? 'Không tìm thấy PDF trong thư mục này.' : 'Chưa chọn được thư mục.'); return; }
     toast(`Đã thêm ${added} PDF${dup?`, bỏ ${dup} trùng`:''}.`);
-    renderDocs();
+    renderDocs(); try{ refreshShellCounts(); }catch(e){}
   });
 
   // Thêm thủ công tài liệu khác (.doc, .docx, …)
@@ -2011,14 +2146,14 @@
       <div class="exam-config">
         <div class="cfg-label">Chọn môn để ${examMode==='exam'?'thi':'ôn'} (có thể chọn nhiều môn để trộn)</div>
         ${batches.length?`<div class="batch-chips">${['all'].concat(batches).map(b=>`<button class="chip ${examBatch===b?'on':''}" data-batch="${esc(b)}">${b==='all'?`Tất cả đợt (${poolAll.length})`:esc(b)+` (${poolAll.filter(q=>qBatch(q)===b).length})`}</button>`).join('')}</div>`:''}
-        <div class="subj-check">
-          ${shown.map(s=>`<label class="sc-item ${selSubjects.has(s.id)?'on':''}"><input type="checkbox" class="sc-chk" data-id="${s.id}" ${selSubjects.has(s.id)?'checked':''}><span class="sc-name">${esc(s.name)}${batchOf(s)?`<span class="sc-batch">${esc(batchOf(s))}</span>`:''}</span><span class="sc-cnt">${s.questions.length}</span></label>`).join('')}
-        </div>
+        ${pickMarkup(shown)}
         ${subjects.length-usable.length? `<p class="hint">${subjects.length-usable.length} môn đang đặt “chỉ tra cứu” nên không hiện ở đây.</p>`:''}
         ${noBatch&&examBatch!=='all'? `<p class="hint">${noBatch} câu chưa gán đợt nên không nằm trong đợt đang chọn (vẫn tra cứu được).</p>`:''}
         <div class="pool-line ${selSubjects.size?'':'warn-txt'}">${selSubjects.size? `Đã chọn <b>${pool.length}</b> câu từ ${selSubjects.size} môn (đã bỏ câu trùng)` : 'Chưa chọn môn nào — hãy tích chọn ít nhất một môn ở trên.'}</div>
         <ul class="ex-facts">${facts}</ul>
         ${examMode==='practice'?`<label class="mini"><input type="checkbox" id="pracInstant" ${practiceInstant?'checked':''}> Hiện đúng/sai ngay khi trả lời</label>`:''}
+        <label class="mini"><input type="checkbox" id="swFx" ${fxOn?'checked':''}> Pháo hoa khi trả lời đúng</label>
+        <label class="mini"><input type="checkbox" id="swSnd" ${sndOn?'checked':''}> Âm thanh</label>
         ${examMode==='exam'?`<label class="mini"><input type="checkbox" id="examInstant" ${examInstant?'checked':''}> Hiện đúng/sai ngay khi trả lời (tự ôn)</label><label class="mini"><input type="checkbox" id="examNoShuffle" ${examNoShuffle?'checked':''}> Không đảo vị trí đáp án</label>`:''}
         ${examMode==='practice'?`<p class="hint" style="margin-top:2px">Ôn tập giữ nguyên <b>thứ tự câu hỏi và thứ tự đáp án</b> như trong file.</p>`:''}
         <div id="poolNote" class="ex-note"></div>
@@ -2028,6 +2163,9 @@
     area.querySelectorAll('.mode-btn').forEach(b=> b.onclick=()=>{ examMode=b.dataset.mode; renderExam(); });
     area.querySelectorAll('[data-batch]').forEach(b=> b.onclick=()=>{ examBatch=b.dataset.batch; renderExam(); });
     area.querySelectorAll('.sc-chk').forEach(c=> c.onchange=()=>{ const id=Number(c.dataset.id); if(c.checked) selSubjects.add(id); else selSubjects.delete(id); renderExam(); });
+    wirePick();
+    const fxc=$('#swFx'); if(fxc) fxc.onchange=e=> fxOn=e.target.checked;
+    const snc=$('#swSnd'); if(snc) snc.onchange=e=>{ sndOn=e.target.checked; if(sndOn) playSnd('correct'); };
     const pi=$('#pracInstant'); if(pi) pi.onchange=e=> practiceInstant=e.target.checked;
     const ei=$('#examInstant'); if(ei) ei.onchange=e=> examInstant=e.target.checked;
     const ens=$('#examNoShuffle'); if(ens) ens.onchange=e=> examNoShuffle=e.target.checked;
@@ -2176,9 +2314,11 @@
       if(exam.instant && exam.answers[i]!=null) return;
       exam.answers[i]=Number(b.dataset.o);
       persistExamSoon();
+      const rightA = q.opts[exam.answers[i]] && q.opts[exam.answers[i]].correct;
+      const waitA = fxAnswer(b, !!rightA);
       renderExamSingle();                      // hiện đúng/sai ngay
       clearTimeout(exam._adv);
-      if(!last){ exam._adv=setTimeout(()=>{ if(exam && !exam.submitted && exam.idx===i) examGoTo(i+1,false); }, exam.instant?1100:250); }
+      if(!last){ exam._adv=setTimeout(()=>{ if(exam && !exam.submitted && exam.idx===i) examGoTo(i+1,false); }, exam.instant?waitA:300); }
     });
     $('#exPrev').onclick=()=> examGoTo(i-1,false);
     $('#exNext').onclick=()=> last? finishExam(false) : examGoTo(i+1,true);   // chưa tích mà bấm tiếp = bỏ qua -> đỏ
@@ -2211,6 +2351,7 @@
       const qi=Number(b.dataset.q), oi=Number(b.dataset.o);
       if(exam.instant && exam.answers[qi]!=null) return;   // đã trả lời thì khóa (chế độ hiện ngay)
       exam.answers[qi]=oi;
+      if(exam.instant){ const o=exam.questions[qi].opts[oi]; fxAnswer(b, !!(o&&o.correct)); }
       persistExamSoon();
       $('#examDone').textContent=examProgress();
       const art=document.getElementById('eq'+qi);
@@ -2265,7 +2406,9 @@
       </div>`;
     area.querySelectorAll('.eq-opt').forEach(b=> b.onclick=()=>{
       if(exam.instant && exam.answers[i]!=null) return;   // đã chọn thì khóa lại (chế độ hiện ngay)
-      exam.answers[i]=Number(b.dataset.o); persistExamSoon(); renderPracticeTaking();
+      exam.answers[i]=Number(b.dataset.o);
+      if(exam.instant){ const o=q.opts[exam.answers[i]]; fxAnswer(b, !!(o&&o.correct)); }
+      persistExamSoon(); renderPracticeTaking();
     });
     $('#pracPrev').onclick=()=>{ if(exam.idx>0){ exam.idx--; renderPracticeTaking(); } };
     const pracFwd=()=>{ if(exam.answers[i]==null){ if(!exam.visited) exam.visited={}; exam.visited[i]=1; }
@@ -2571,6 +2714,7 @@
     subjects=await subjectsAll();
     remoteInfo={url:usedUrl, subjects:parsed.length, total, at:found.exportedAt||0};
     toast(`Đã tải dữ liệu online: ${parsed.length} môn · ${total} câu.`);
+    try{ refreshShellCounts(); }catch(e){}
     renderOnlineStatus();
     if(curSub==='bank') renderBank(); else if(curSub==='search') renderResults();
     return true;
@@ -2635,6 +2779,7 @@
     await metaSet(stampKey, stamp);
     subjects=await subjectsAll();
     toast(`Đã nạp ${total} câu (${parsed.length} môn) từ ${label}.`);
+    try{ refreshShellCounts(); }catch(e){}
     return true;
   }
   function loadScriptOnce(src){
@@ -2763,6 +2908,183 @@
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden' && exam && !exam.submitted){ clearTimeout(persistTimer); persistExam(); } });
   window.addEventListener('pagehide', ()=>{ if(exam && !exam.submitted){ clearTimeout(persistTimer); persistExam(); } });
 
+
+  /* ================= Âm thanh & pháo hoa ================= */
+  let fxOn=true, sndOn=true, ac=null;
+  const EXT={};
+  const SND_FILES={correct:['audio/correct.mp3','correct.mp3'],wrong:['audio/wrong.mp3','wrong.mp3'],boom:['audio/boom.mp3','boom.mp3']};
+  function probeSnd(url){ return new Promise(res=>{ const a=new Audio(); let done=false;
+    const ok=()=>{ if(!done){done=true;res(url);} }, bad=()=>{ if(!done){done=true;res(null);} };
+    a.addEventListener('canplaythrough',ok,{once:true}); a.addEventListener('error',bad,{once:true});
+    setTimeout(bad,2500); a.preload='auto'; a.src=url; a.load(); }); }
+  (async()=>{ for(const k of Object.keys(SND_FILES)){ for(const u of SND_FILES[k]){ const r=await probeSnd(u); if(r){ EXT[k]=r; break; } } } })();
+  function actx(){ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended') ac.resume(); return ac; }
+  function bell(f,t0,dur,vol){ const c=actx(),o=c.createOscillator(),g=c.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(f,c.currentTime+t0);
+    g.gain.setValueAtTime(0,c.currentTime+t0); g.gain.linearRampToValueAtTime(vol,c.currentTime+t0+.008);
+    g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+t0+dur);
+    o.connect(g); g.connect(c.destination); o.start(c.currentTime+t0); o.stop(c.currentTime+t0+dur+.02); }
+  function boomSnd(){ if(!sndOn) return;
+    if(EXT.boom){ const a=new Audio(EXT.boom); a.volume=1; a.play().catch(()=>{}); return; }
+    try{ const c=actx();
+      const o=c.createOscillator(),g=c.createGain();
+      o.type='sine'; o.frequency.setValueAtTime(120,c.currentTime); o.frequency.exponentialRampToValueAtTime(38,c.currentTime+.45);
+      g.gain.setValueAtTime(.85,c.currentTime); g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.6);
+      o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime+.65);
+      const n=c.sampleRate*.7, b=c.createBuffer(1,n,c.sampleRate), d=b.getChannelData(0);
+      for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/n,1.4);
+      const src=c.createBufferSource(), ng=c.createGain(), lp=c.createBiquadFilter();
+      lp.type='lowpass'; lp.frequency.value=1400; src.buffer=b; ng.gain.value=.6;
+      src.connect(lp); lp.connect(ng); ng.connect(c.destination); src.start();
+    }catch(e){} }
+  function playSnd(kind){
+    if(!sndOn) return;
+    if(EXT[kind]){ const a=new Audio(EXT[kind]); a.volume=.95; a.play().catch(()=>{}); return; }
+    try{
+      if(kind==='correct'){ bell(1318,0,.5,.35); bell(1760,.16,.6,.3); }          // ting… ting
+      else if(kind==='wrong'){
+        if('speechSynthesis' in window){
+          const u=new SpeechSynthesisUtterance('Rất tiếc, sai rồi');
+          u.lang='vi-VN'; u.rate=1.05; u.pitch=1;
+          const vs=speechSynthesis.getVoices()||[];
+          const vi=vs.find(v=>/vi/i.test(v.lang));
+          if(vi) u.voice=vi;
+          if(vi || vs.length){ speechSynthesis.cancel(); speechSynthesis.speak(u); return; }
+        }
+        bell(392,0,.22,.28); bell(330,.16,.28,.26); bell(262,.34,.5,.24);          // tiếc nuối
+      }
+    }catch(e){}
+  }
+
+  const fxCv=document.getElementById('fxCanvas'), fxCx=fxCv?fxCv.getContext('2d'):null;
+  let fxParts=[], fxRaf=null;
+  const fxReduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function fxFit(){ if(!fxCv) return; fxCv.width=innerWidth*devicePixelRatio; fxCv.height=innerHeight*devicePixelRatio;
+    fxCx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0); }
+  addEventListener('resize',fxFit); fxFit();
+  function fxBurst(x,y,n,power){
+    const cols=['#1F6F78','#2FA8A0','#15803D','#F2B705','#E86A33','#C9A227','#8C1C2B'];
+    for(let i=0;i<n;i++){ const a=Math.random()*Math.PI*2, sp=(Math.random()*.5+.35)*power;
+      fxParts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-.9,g:.022+Math.random()*.012,life:1,dec:.0052+Math.random()*.0028,
+        c:cols[(Math.random()*cols.length)|0], r:Math.random()*2.6+1.6, rot:Math.random()*6}); }
+    if(!fxRaf) fxRaf=requestAnimationFrame(fxLoop);
+  }
+  function fxLoop(){
+    fxCx.clearRect(0,0,fxCv.width,fxCv.height);
+    fxParts=fxParts.filter(p=>p.life>0);
+    fxParts.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=p.g; p.vx*=.995; p.life-=p.dec; p.rot+=.07;
+      fxCx.globalAlpha=Math.max(p.life,0); fxCx.fillStyle=p.c;
+      fxCx.save(); fxCx.translate(p.x,p.y); fxCx.rotate(p.rot); fxCx.fillRect(-p.r,-p.r*.6,p.r*2,p.r*1.2); fxCx.restore(); });
+    fxCx.globalAlpha=1;
+    fxRaf = fxParts.length? requestAnimationFrame(fxLoop) : null;
+  }
+  // Phản hồi khi trả lời: trả về số mili-giây nên chờ trước khi sang câu sau
+  function fxAnswer(el, right){
+    if(!exam) return right?900:900;
+    if(right){ exam.streak=(exam.streak||0)+1; } else { exam.streak=0; }
+    const big = right && exam.streak>0 && exam.streak%3===0;
+    playSnd(right?'correct':'wrong');
+    if(right && fxOn && !fxReduce && el){
+      const r=el.getBoundingClientRect();
+      fxBurst(r.left+r.width/2, r.top+r.height/2, 42, 4.2);
+      if(big){ boomSnd();
+        setTimeout(()=> fxBurst(innerWidth*.28, innerHeight*.38, 80, 6), 160);
+        setTimeout(()=> fxBurst(innerWidth*.72, innerHeight*.32, 80, 6), 420);
+        setTimeout(()=>{ boomSnd(); fxBurst(innerWidth*.5, innerHeight*.46, 110, 7); }, 700);
+      }
+    }
+    return right? (big?3000:1900) : 2100;
+  }
+
+  let pickOpen=false, pickFilter='', pickFocus=false;
+  function pickMarkup(shown){
+    const tot=[...selSubjects].reduce((a,id)=>{ const s=subjects.find(x=>x.id===id); return a+((s&&s.questions.length)||0); },0);
+    const q=noAccent(pickFilter);
+    const rows=shown.filter(s=> !q || noAccent(s.name).includes(q));
+    const chips=[...selSubjects].map(id=>(subjects.find(x=>x.id===id)||{}).name).filter(Boolean);
+    return `<div class="pick ${pickOpen?'open':''}">
+      <button class="pick-btn" id="pickBtn" type="button">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h18M3 12h18M3 17h10"/></svg>
+        <span><b>${selSubjects.size? `Đã chọn ${selSubjects.size} môn` : 'Chọn môn'}</b> <span class="sum">${selSubjects.size? '· '+tot.toLocaleString('vi')+' câu' : '· chưa chọn môn nào'}</span></span>
+        <svg class="caret" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="pick-list" ${pickOpen?'':'hidden'}>
+        <div class="pick-tools">
+          <input id="pickSearch" type="search" placeholder="Tìm môn…" value="${esc(pickFilter)}" autocomplete="off">
+          <button class="mini-btn" id="pickAll" type="button">${selSubjects.size?'Bỏ chọn hết':'Chọn tất cả'}</button>
+        </div>
+        ${rows.length? rows.map(s=>`<label class="pick-row"><input type="checkbox" class="sc-chk" data-id="${s.id}" ${selSubjects.has(s.id)?'checked':''}><span class="nm">${esc(s.name)}</span><span class="ct">${s.questions.length}</span></label>`).join('')
+          : `<div style="padding:16px;text-align:center;color:var(--ink-3);font-size:13.5px">Không có môn nào khớp</div>`}
+      </div>
+      ${chips.length? `<div class="chips">${chips.slice(0,4).map(n=>`<span class="chip">${esc(n)}</span>`).join('')}${chips.length>4?`<span class="chip">+${chips.length-4} môn</span>`:''}</div>`:''}
+    </div>`;
+  }
+  function wirePick(){
+    const pb=$('#pickBtn'); if(pb) pb.onclick=()=>{ pickOpen=!pickOpen; pickFocus=pickOpen; renderExam(); };
+    const ps=$('#pickSearch'); if(ps){ ps.oninput=e=>{ pickFilter=e.target.value; pickFocus=true; renderExam(); };
+      if(pickFocus){ ps.focus(); const v=ps.value; ps.value=''; ps.value=v; pickFocus=false; } }
+    const pa=$('#pickAll'); if(pa) pa.onclick=()=>{
+      if(selSubjects.size) selSubjects.clear();
+      else subjects.filter(s=>!s.refOnly).forEach(s=> selSubjects.add(s.id));
+      renderExam(); };
+  }
+
+  /* ================= Lớp điều hướng: trang chủ -> module -> chức năng ================= */
+  let shellView='home';
+  const SHELL_TITLE={
+    home:['Văn bản & Trắc nghiệm','Chọn phần bạn muốn làm việc'],
+    docs:['Quản lý Văn bản','Tài liệu PDF trên máy'],
+    quizhub:['Ôn thi trắc nghiệm','Chọn việc bạn muốn làm'],
+    search:['Tra cứu','Tìm câu hỏi và đáp án'],
+    exam:['Ôn tập và Thi','Chọn môn rồi bắt đầu'],
+    photo:['Tra cứu bằng ảnh','Chụp hoặc dán ảnh câu hỏi'],
+    bank:['Ngân hàng câu hỏi','Nạp và quản lý bộ đề']
+  };
+  function shellGo(v){
+    shellView=v;
+    const home=(v==='home'), hub=(v==='quizhub');
+    $('#shellHome').hidden=!home;
+    $('#shellQuiz').hidden=!hub;
+    const showApp=!home && !hub;
+    document.querySelectorAll('.panel').forEach(p=> p.style.display = showApp? '' : 'none');
+    const tabs=document.querySelector('.tabs'); if(tabs) tabs.style.display='none';
+    const sub=document.querySelector('.subtabs'); if(sub) sub.style.display='none';
+    $('#navBack').hidden=home;
+    const nr=document.querySelector('.navrow'); if(nr) nr.hidden=home;   // ở trang chủ đã có tên app rồi
+    const t=SHELL_TITLE[v]||SHELL_TITLE.home;
+    $('#navTtl').textContent=t[0]; $('#navSub').textContent=t[1];
+    if(home) refreshShellCounts();
+    window.scrollTo(0,0);
+  }
+  function shellBack(){
+    if(shellView==='docs'||shellView==='quizhub') shellGo('home');
+    else shellGo('quizhub');
+  }
+  async function refreshShellCounts(){
+    try{
+      const fs=await filesAll();
+      $('#cntDocs').textContent = fs.length? fs.length+' file' : 'chưa có file';
+      const n=subjects.reduce((a,s)=>a+((s.questions&&s.questions.length)||0),0);
+      $('#cntQuiz').textContent = n? n.toLocaleString('vi')+' câu' : 'chưa có câu hỏi';
+    }catch(e){}
+  }
+  document.querySelectorAll('[data-shell]').forEach(b=> b.onclick=()=>{
+    b.classList.add('lit');
+    setTimeout(()=>{ b.classList.remove('lit');
+      if(b.dataset.shell==='docs'){ const t=document.querySelector('.tab[data-tab="docs"]'); if(t) t.click(); shellGo('docs'); }
+      else shellGo('quizhub');
+    },150);
+  });
+  document.querySelectorAll('[data-fn]').forEach(b=> b.onclick=()=>{
+    b.classList.add('lit');
+    setTimeout(()=>{ b.classList.remove('lit');
+      const qt=document.querySelector('.tab[data-tab="quiz"]'); if(qt) qt.click();
+      const st=document.querySelector('.subtab[data-sub="'+b.dataset.fn+'"]'); if(st) st.click();
+      shellGo(b.dataset.fn);
+    },150);
+  });
+  $('#navBack').addEventListener('click', shellBack);
+
   /* ================= Tabs ================= */
   document.querySelectorAll('.tab').forEach(t=> t.onclick=()=>{
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('is-active'));
@@ -2802,6 +3124,7 @@
     renderDocs();
     renderResults();
     renderFolderStatus();
+    shellGo('home');
     autoSyncFolder();   // máy tính: tự thêm file mới từ thư mục đã liên kết
     const vb=$('#verBadge');
     if(vb){ vb.textContent = CAN_EXPORT? 'Offline' : 'Online'; vb.className='ver-badge '+(CAN_EXPORT?'off':'on'); }
