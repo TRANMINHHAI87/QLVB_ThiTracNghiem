@@ -718,6 +718,10 @@
   .search .mic.on{ background:var(--red); animation:micPulse 1.1s ease-in-out infinite }
   @keyframes micPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(214,69,69,.55) } 50%{ box-shadow:0 0 0 9px rgba(214,69,69,0) } }
   @media (prefers-reduced-motion:reduce){ .search .mic.on{ animation:none } }
+  .mic-note{ margin-top:6px !important }
+  .mic-note.live{ color:var(--brand-700); font-weight:700 }
+  .mic-note.ok{ color:#0E5C2C; font-weight:700 }
+  .mic-note.warn{ color:var(--red); font-weight:700 }
 </style>
 </head>
 <body>
@@ -727,7 +731,7 @@
       <span class="mark" aria-hidden="true"></span>
       <div class="brand-txt">
         <strong>Văn bản &amp; Trắc nghiệm <span id="verBadge" class="ver-badge"></span></strong>
-        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b14.09-H</b></span>
+        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b17.09-A</b></span>
       </div>
     </div>
     <div id="storeWarn" class="store-warn" hidden>
@@ -3268,52 +3272,78 @@
 
   /* ================= Nói để tìm (nhận dạng giọng nói của trình duyệt) ================= */
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let rec=null, recOn=false, recFinal='';
+  let rec=null, recOn=false, recText='', recTimer=null, recGuard=null, recGotAudio=false;
   function micBrowserNote(){
     const ua=navigator.userAgent;
     if(/Firefox|FxiOS/i.test(ua)) return 'Firefox không hỗ trợ nói để tìm nên nút micro bị ẩn. Dùng Chrome hoặc Edge (Safari trên iPhone cũng được) nếu muốn dùng giọng nói.';
     if(/^file:/.test(location.protocol)) return 'Nói để tìm cần mở qua đường link web (https), mở file trực tiếp thì trình duyệt khoá micro. Bạn vẫn gõ hoặc dán ảnh bình thường.';
     return 'Trình duyệt này không hỗ trợ nói để tìm. Bạn vẫn gõ hoặc dán ảnh bình thường.';
   }
-  function setupMic(){
-    const btn=$('#micBtn'), note=$('#micNote');
-    if(!btn||!note) return;
-    if(!SR){ btn.hidden=true; note.hidden=false; note.textContent=micBrowserNote(); return; }
-    btn.hidden=false; note.hidden=true;
-    btn.onclick=()=> recOn? stopRec() : startRec();
+  function micSay(msg, kind){
+    const n=$('#micNote'); if(!n) return;
+    n.hidden = !msg;
+    n.textContent = msg||'';
+    n.className = 'hint mic-note' + (kind? ' '+kind : '');
   }
-  function stopRec(){ try{ if(rec) rec.stop(); }catch(e){} recOn=false; const b=$('#micBtn'); if(b) b.classList.remove('on'); }
+  function setupMic(){
+    const btn=$('#micBtn');
+    if(!btn) return;
+    if(!SR){ btn.hidden=true; micSay(micBrowserNote()); return; }
+    btn.hidden=false; micSay('');
+    btn.onclick=()=> recOn? stopRec('Đã dừng nghe.') : startRec();
+  }
+  function micReset(){
+    clearTimeout(recTimer); clearTimeout(recGuard);
+    recOn=false; const b=$('#micBtn'); if(b) b.classList.remove('on');
+  }
+  function stopRec(msg){ try{ if(rec) rec.stop(); }catch(e){} micReset(); if(msg) micSay(msg); }
+  function applyVoice(){
+    const el=$('#quizSearch');
+    const txt=(recText || (el? el.value : '')).trim();
+    if(txt){
+      clearTimeout(searchTimer);
+      quizQuery=txt; renderResults();
+      if(el) el.value='';
+      micSay('Đã nghe: “'+txt+'” — bấm micro để nói tiếp.', 'ok');
+    } else {
+      micSay('Không nhận được chữ nào. Nói to, rõ và gần micro hơn — hoặc gõ tay / dán ảnh.', 'warn');
+    }
+  }
   function startRec(){
     if(!SR) return;
     try{
       rec=new SR();
       rec.lang='vi-VN'; rec.interimResults=true; rec.continuous=false; rec.maxAlternatives=1;
-      recFinal='';
-      rec.onstart=()=>{ recOn=true; const b=$('#micBtn'); if(b) b.classList.add('on'); toast('Đang nghe… mời bạn nói'); };
+      recText=''; recGotAudio=false;
+      rec.onstart=()=>{ recOn=true; const b=$('#micBtn'); if(b) b.classList.add('on');
+        micSay('Đang nghe… mời bạn nói (nói xong im khoảng 1 giây là máy tự nhận).', 'live');
+        clearTimeout(recTimer); recTimer=setTimeout(()=>{ try{ rec.stop(); }catch(e){} }, 9000);   // tự dừng sau 9 giây
+        clearTimeout(recGuard); recGuard=setTimeout(()=>{ if(recOn){ micReset(); applyVoice(); } }, 15000); // phòng khi máy treo
+      };
+      rec.onaudiostart=()=>{ recGotAudio=true; };
       rec.onresult=e=>{
         let txt='';
         for(let i=0;i<e.results.length;i++) txt+=e.results[i][0].transcript;
-        txt=txt.trim();
-        const el=$('#quizSearch'); if(el) el.value=txt;
-        const last=e.results[e.results.length-1];
-        if(last && last.isFinal) recFinal=txt;
+        txt=txt.replace(/\s+/g,' ').trim();
+        if(txt){ recText=txt; const el=$('#quizSearch'); if(el) el.value=txt;
+          micSay('Đang nghe: “'+txt+'”', 'live'); }
       };
+      rec.onspeechend=()=>{ try{ rec.stop(); }catch(e){} };      // nói xong là chốt luôn, khỏi chờ
+      rec.onnomatch=()=>{ micSay('Máy nghe nhưng không đoán được chữ. Thử nói chậm và rõ hơn.', 'warn'); };
       rec.onerror=ev=>{
-        const m={'not-allowed':'Bạn chưa cho phép dùng micro. Bấm vào biểu tượng ổ khoá trên thanh địa chỉ để bật lại.',
-                 'service-not-allowed':'Trình duyệt chặn nhận dạng giọng nói.',
-                 'network':'Nhận dạng giọng nói cần mạng. Bạn gõ tay hoặc dán ảnh nhé.',
-                 'no-speech':'Không nghe thấy gì, thử nói lại gần micro hơn.',
-                 'audio-capture':'Không tìm thấy micro trên máy.'};
-        toast(m[ev.error] || ('Lỗi micro: '+ev.error));
+        micReset();
+        const m={'not-allowed':'Chưa được phép dùng micro. Bấm biểu tượng ổ khoá cạnh địa chỉ web → Quyền → bật Micro, rồi tải lại trang.',
+                 'service-not-allowed':'Trình duyệt chặn nhận dạng giọng nói (thường do chưa cấp quyền micro cho Chrome trong Cài đặt máy).',
+                 'network':'Nhận dạng giọng nói cần mạng — mạng đang yếu hoặc bị chặn. Bạn gõ tay hoặc dán ảnh nhé.',
+                 'no-speech':'Không nghe thấy tiếng nói. Kiểm tra micro có bị che không, rồi bấm nói lại.',
+                 'aborted':'Đã dừng nghe.',
+                 'audio-capture':'Không dùng được micro (có thể ứng dụng khác đang chiếm micro).'};
+        micSay((m[ev.error] || ('Lỗi micro: '+ev.error)) , ev.error==='aborted'?'':'warn');
       };
-      rec.onend=()=>{
-        recOn=false; const b=$('#micBtn'); if(b) b.classList.remove('on');
-        const el=$('#quizSearch');
-        const txt=(recFinal || (el? el.value : '')).trim();
-        if(txt){ clearTimeout(searchTimer); quizQuery=txt; renderResults(); if(el) el.value=''; }
-      };
+      rec.onend=()=>{ micReset(); applyVoice(); };
       rec.start();
-    }catch(e){ toast('Không mở được micro: '+(e&&e.message||e)); }
+      micSay('Đang mở micro…', 'live');
+    }catch(e){ micReset(); micSay('Không mở được micro: '+(e&&e.message||e), 'warn'); }
   }
 
   /* ================= Lớp điều hướng: trang chủ -> module -> chức năng ================= */
