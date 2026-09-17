@@ -700,6 +700,13 @@
   .tabs, .subtabs{ display:none !important }
   .panel{ display:none }
   .panel.is-active{ display:block }
+  /* ---- Chọn thời lượng bài thi ---- */
+  .dur{ margin:2px 0 12px }
+  .dur-lbl{ display:block; font-size:13px; font-weight:600; color:var(--ink-2); margin-bottom:7px }
+  .dur-opts{ display:flex; flex-wrap:wrap; gap:6px; align-items:center }
+  .dur-input{ width:88px; border:1.5px solid var(--brand); border-radius:999px; padding:6px 12px;
+    font:inherit; font-size:13.5px; font-weight:700; font-family:var(--mono); text-align:center; color:var(--brand-700) }
+  .dur-unit{ font-size:12.5px; color:var(--ink-3) }
 </style>
 </head>
 <body>
@@ -709,7 +716,7 @@
       <span class="mark" aria-hidden="true"></span>
       <div class="brand-txt">
         <strong>Văn bản &amp; Trắc nghiệm <span id="verBadge" class="ver-badge"></span></strong>
-        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b14.09-E</b></span>
+        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b14.09-G</b></span>
       </div>
     </div>
     <div id="storeWarn" class="store-warn" hidden>
@@ -1330,6 +1337,8 @@
   /* ================= TAB 2: QUIZ ================= */
   const QUIZ_CAP=400;
   const EXAM_SIZE=100, EXAM_OVERLAP=0.30, EXAM_MIN=50;
+  const MIN_PRESETS=[60,50,45,30,25,20,15,10];
+  let examMin=EXAM_MIN, examMinCustom=false;   // thời lượng bài thi (phút), tối đa 60
   let subjects=[];
   let quizQuery='';
   let searchScope='all';
@@ -2151,7 +2160,7 @@
     if(mode==='exam'){
       const lastMap=await getLastExamMap();
       const raw=pickExamRaw(pool, lastMap[key]);
-      exam={ mode:'exam', instant:examInstant, ids, key, sourceName, questions:buildExamQuestions(raw, examNoShuffle), answers:{}, visited:{}, idx:0, startedAt:Date.now(), deadline:Date.now()+EXAM_MIN*60000, submitted:false, timerId:null };
+      exam={ mode:'exam', instant:examInstant, ids, key, sourceName, questions:buildExamQuestions(raw, examNoShuffle), answers:{}, visited:{}, idx:0, startedAt:Date.now(), deadline:Date.now()+examMin*60000, minutes:examMin, submitted:false, timerId:null };
     } else {
       let raw=pool.slice();   // ôn tập: giữ nguyên thứ tự câu hỏi như trong file
       exam={ mode:'practice', instant:practiceInstant, ids, key, sourceName, questions:buildExamQuestions(raw, true), answers:{}, visited:{}, idx:0, startedAt:Date.now(), deadline:null, submitted:false, timerId:null };
@@ -2223,7 +2232,7 @@
     const pool = examBatch==='all'? poolAll : poolAll.filter(q=> qBatch(q)===examBatch);
     const noBatch = poolAll.filter(q=> !qBatch(q)).length;
     const facts = examMode==='exam'
-      ? `<li><b>${EXAM_SIZE}</b> câu/đề</li><li><b>${EXAM_MIN}</b> phút</li><li>Thang <b>100</b>đ</li><li>Lặp <b>30%</b> đề trước</li>`
+      ? `<li><b>${EXAM_SIZE}</b> câu/đề</li><li><b>${examMin}</b> phút</li><li>Thang <b>100</b>đ</li><li>Lặp <b>30%</b> đề trước</li>`
       : `<li><b>${pool.length}</b> câu (làm hết)</li><li><b>Không</b> giới hạn giờ</li><li>Được <b>bỏ qua</b></li><li>Xem lại cuối bài</li>`;
     area.innerHTML=`
       <div class="mode-seg">
@@ -2237,6 +2246,14 @@
         ${subjects.length-usable.length? `<p class="hint">${subjects.length-usable.length} môn đang đặt “chỉ tra cứu” nên không hiện ở đây.</p>`:''}
         ${noBatch&&examBatch!=='all'? `<p class="hint">${noBatch} câu chưa gán đợt nên không nằm trong đợt đang chọn (vẫn tra cứu được).</p>`:''}
         <div class="pool-line ${selSubjects.size?'':'warn-txt'}">${selSubjects.size? `Đã chọn <b>${pool.length}</b> câu từ ${selSubjects.size} môn (đã bỏ câu trùng)` : 'Chưa chọn môn nào — hãy tích chọn ít nhất một môn ở trên.'}</div>
+        ${examMode==='exam'?`<div class="dur">
+          <span class="dur-lbl">Thời lượng bài thi</span>
+          <div class="dur-opts">
+            ${MIN_PRESETS.map(m=>`<button class="chip-btn ${(!examMinCustom&&examMin===m)?'on':''}" data-min="${m}">${m}p</button>`).join('')}
+            <button class="chip-btn ${examMinCustom?'on':''}" data-min="custom">Tự gõ</button>
+            ${examMinCustom?`<input id="durInput" class="dur-input" type="number" min="1" max="60" step="1" value="${examMin}" inputmode="numeric"> <span class="dur-unit">phút (tối đa 60)</span>`:''}
+          </div>
+        </div>`:''}
         <ul class="ex-facts">${facts}</ul>
         ${examMode==='practice'?`<label class="mini"><input type="checkbox" id="pracInstant" ${practiceInstant?'checked':''}> Hiện đúng/sai ngay khi trả lời</label>`:''}
         <label class="mini"><input type="checkbox" id="swFx" ${fxOn?'checked':''}> Pháo hoa khi trả lời đúng</label>
@@ -2256,6 +2273,21 @@
     const pi=$('#pracInstant'); if(pi) pi.onchange=e=> practiceInstant=e.target.checked;
     const ei=$('#examInstant'); if(ei) ei.onchange=e=> examInstant=e.target.checked;
     const ens=$('#examNoShuffle'); if(ens) ens.onchange=e=> examNoShuffle=e.target.checked;
+    area.querySelectorAll('[data-min]').forEach(b=> b.onclick=()=>{
+      if(b.dataset.min==='custom'){ examMinCustom=true; }
+      else { examMinCustom=false; examMin=parseInt(b.dataset.min,10); }
+      renderExam();
+    });
+    const di=$('#durInput');
+    if(di){ di.focus(); di.select();
+      di.oninput=()=>{ let v=parseInt(di.value,10); if(!isFinite(v)) return;
+        v=Math.max(1,Math.min(60,v)); examMin=v;
+        const fx=document.querySelector('.ex-facts li:nth-child(2) b'); if(fx) fx.textContent=v; };
+      di.onblur=()=>{ let v=parseInt(di.value,10); if(!isFinite(v)||v<1) v=1; if(v>60) v=60;
+        di.value=v; examMin=v;
+        const fx=document.querySelector('.ex-facts li:nth-child(2) b'); if(fx) fx.textContent=v; };   // không vẽ lại để không nuốt cú bấm kế tiếp
+      di.onkeydown=e=>{ if(e.key==='Enter'){ di.blur(); } };
+    }
     const note=$('#poolNote');
     if(examMode==='exam'){ if(pool.length<EXAM_SIZE) note.innerHTML=`<span class="warn-txt">Chỉ có ${pool.length} câu (nhỏ hơn ${EXAM_SIZE}). Đề sẽ gồm ${pool.length} câu.</span>`; else note.textContent=`Đủ tạo đề ${EXAM_SIZE} câu.`; }
     else { note.textContent=`Bạn sẽ lần lượt trả lời ${pool.length} câu, có thể bỏ qua câu chưa nhớ.`; }
@@ -2296,7 +2328,7 @@
       </div>`;
     const go=()=>{ exam.askResume=false; renderExam(); };
     const g=$('#rsGo'); if(g) g.onclick=go;
-    const more=$('#rsMore'); if(more) more.onclick=async ()=>{ exam.deadline=Date.now()+EXAM_MIN*60000; await persistExam(); go(); };
+    const more=$('#rsMore'); if(more) more.onclick=async ()=>{ exam.deadline=Date.now()+((exam.minutes||EXAM_MIN)*60000); await persistExam(); go(); };
     const sc=$('#rsScore'); if(sc) sc.onclick=()=>{ exam.askResume=false; finishExam(true); };
     $('#rsNew').onclick=async ()=>{
       const ok=await modalConfirm({title:'Bỏ bài đang làm dở?', message:`Bài ${isExam?'thi':'ôn'} “${exam.sourceName}” (đã làm ${done}/${total} câu) sẽ bị xóa và không chấm điểm.`, ok:'Bỏ, tạo bài mới', cancel:'Giữ lại', danger:true});
