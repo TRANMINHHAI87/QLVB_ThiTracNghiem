@@ -722,6 +722,8 @@
   .mic-note.live{ color:var(--brand-700); font-weight:700 }
   .mic-note.ok{ color:#0E5C2C; font-weight:700 }
   .mic-note.warn{ color:var(--red); font-weight:700 }
+  .starts-opt{ margin-top:8px }
+  .starts-opt b{ color:var(--brand-700) }
 </style>
 </head>
 <body>
@@ -731,7 +733,7 @@
       <span class="mark" aria-hidden="true"></span>
       <div class="brand-txt">
         <strong>Văn bản &amp; Trắc nghiệm <span id="verBadge" class="ver-badge"></span></strong>
-        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b17.09-A</b></span>
+        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b17.09-B</b></span>
       </div>
     </div>
     <div id="storeWarn" class="store-warn" hidden>
@@ -848,6 +850,7 @@
             </button>
           </div>
           <p class="hint" id="micNote" hidden></p>
+          <label class="mini starts-opt"><input type="checkbox" id="startsOnly"> Chỉ tìm câu <b>bắt đầu bằng</b> từ khóa</label>
         </div>
         <div id="resultHead" class="resulthead" hidden></div>
         <div id="quizList"></div>
@@ -1401,6 +1404,9 @@
 
   // Nhớ đệm để không phải bỏ dấu lại toàn bộ ngân hàng sau mỗi phím gõ
   const _hay=new WeakMap(), _qk=new WeakMap();
+  let startsOnly=false;
+  const _qn=new WeakMap();
+  function qNorm(q){ let v=_qn.get(q); if(v===undefined){ v=noAccent(q.question); _qn.set(q,v); } return v; }
   function hayOf(q){ let v=_hay.get(q); if(v===undefined){ v=noAccent(q.question)+' \u0001 '+noAccent((q.answers||[]).join(' ')); _hay.set(q,v); } return v; }
   function qKeyC(q){ let v=_qk.get(q); if(v===undefined){ v=qKey(q); _qk.set(q,v); } return v; }
   function subjSig(){ return subjects.map(x=> x.id+':'+((x.questions&&x.questions.length)||0)+':'+((x.batch||'')+(x.refOnly?'R':''))).join('|'); }
@@ -1494,11 +1500,11 @@
     if(!subjects.length){ head.hidden=true; cont.innerHTML=`<div class="empty"><h3>Chưa có câu hỏi</h3><p>Vào mục <b>Ngân hàng</b> để tải file câu hỏi theo môn, rồi quay lại đây tra cứu.</p></div>`; return; }
     const pool=poolFor(searchScope);
     const q=noAccent(quizQuery);
-    const matched = q ? pool.filter(it=> hayOf(it).includes(q)) : pool;
+    const matched = q ? pool.filter(it=> startsOnly ? qNorm(it).startsWith(q) : hayOf(it).includes(q)) : pool;
     head.hidden=false;
-    head.innerHTML = q ? `Tìm thấy ${matched.length}/${pool.length} câu · từ khóa: <b>${esc(quizQuery.trim())}</b> <button class="link" id="clrQ">xem tất cả</button>` : `${pool.length} câu hỏi`;
+    head.innerHTML = q ? `Tìm thấy ${matched.length}/${pool.length} câu · ${startsOnly?'câu <b>bắt đầu bằng</b>':'từ khóa'}: <b>${esc(quizQuery.trim())}</b> <button class="link" id="clrQ">xem tất cả</button>` : `${pool.length} câu hỏi`;
     const cq=$('#clrQ'); if(cq) cq.onclick=()=>{ quizQuery=''; const el=$('#quizSearch'); if(el) el.value=''; renderResults(); };
-    if(!matched.length){ cont.innerHTML=`<div class="empty"><h3>Không có kết quả</h3><p>Không có câu hỏi nào chứa “${esc(quizQuery)}”.</p></div>`; return; }
+    if(!matched.length){ cont.innerHTML=`<div class="empty"><h3>Không có kết quả</h3><p>${startsOnly? `Không có câu hỏi nào <b>bắt đầu bằng</b> “${esc(quizQuery)}”. Bỏ tích ô “Chỉ tìm câu bắt đầu bằng từ khóa” để tìm rộng hơn.` : `Không có câu hỏi nào chứa “${esc(quizQuery)}”.`}</p></div>`; return; }
     const show=matched.slice(0,QUIZ_CAP), letters=['A','B','C','D'];
     cont.innerHTML=show.map(it=>{
       const opts=it.answers.map((a,i)=>{ if(!a) return ''; const on=it.correct.includes(i);
@@ -3453,6 +3459,7 @@
     if(!hasLocalData) syncRemote(false);   // 3) chỉ đọc cauhoi.json khi KHÔNG có nguồn kèm file
     await mergeDuplicateSubjects();        // dọn môn trùng tên (nếu máy đã có sẵn dữ liệu cùng tên)
     renderResults(); refreshShellCounts(); setupMic();
+    const so=$('#startsOnly'); if(so) so.onchange=e=>{ startsOnly=e.target.checked; renderResults(); };
   })();
 })();
 </script>
