@@ -741,7 +741,7 @@
       <span class="mark" aria-hidden="true"></span>
       <div class="brand-txt">
         <strong>Văn bản &amp; Trắc nghiệm <span id="verBadge" class="ver-badge"></span></strong>
-        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b17.09-E</b></span>
+        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b19.09-B</b></span>
       </div>
     </div>
     <div id="storeWarn" class="store-warn" hidden>
@@ -1610,9 +1610,12 @@
     const chars=pages.reduce((a,items)=> a+items.reduce((b,it)=>b+it.s.length,0), 0);
     if(chars < pdf.numPages*40){
       const go=await modalConfirm({title:'PDF này là bản scan (ảnh)',
-        message:`File không có lớp chữ nên không đọc trực tiếp được. Có thể dùng bộ đọc chữ (OCR) để nhận dạng ${pdf.numPages} trang — mất khoảng ${Math.ceil(pdf.numPages*6/60)} phút và kết quả cần kiểm tra lại, nhất là khi bản scan bị nghiêng.`,
-        ok:'Đọc bằng OCR', cancel:'Thôi'});
+        message:`File ${pdf.numPages} trang, không có lớp chữ. Sẽ dò đường kẻ bảng rồi đọc chữ TỪNG Ô (chính xác hơn nhiều so với đọc cả trang), nhưng chậm — khoảng ${Math.max(1,Math.ceil(pdf.numPages*0.6))}–${Math.ceil(pdf.numPages*1.5)} phút. Đọc xong vẫn nên soát lại ở bước gán cột. Bấm Esc bất cứ lúc nào để dừng và lấy phần đã đọc.`,
+        ok:'Đọc theo dạng bảng', cancel:'Thôi'});
       if(!go) return [];
+      const tbl=await pdfTableOcr(pdf);
+      if(tbl.length) return tbl;
+      toast('Không thấy đường kẻ bảng — chuyển sang đọc cả trang.');
       const lines=await pdfOcrPages(pdf);
       return pdfHeuristic(lines);
     }
@@ -1694,6 +1697,85 @@
     }
     return merged;
   }
+  /* ---- Đọc PDF scan dạng BẢNG: dò đường kẻ, cắt từng ô rồi đọc chữ ---- */
+  let pdfAbort=false;
+  function detectTableGrid(c){
+    const W=c.width, H=c.height;
+    const x=c.getContext('2d',{willReadFrequently:true});
+    const d=x.getImageData(0,0,W,H).data;
+    const colCnt=new Int32Array(W), rowCnt=new Int32Array(H);
+    for(let y=0;y<H;y++){
+      const off=y*W*4;
+      for(let xx=0;xx<W;xx++){
+        const i=off+xx*4;
+        if(d[i]*.299+d[i+1]*.587+d[i+2]*.114 < 200){ colCnt[xx]++; rowCnt[y]++; }
+      }
+    }
+    const pick=(arr,total,frac)=>{ const th=total*frac, out=[]; let s=-1;
+      for(let i=0;i<arr.length;i++){ if(arr[i]>=th){ if(s<0) s=i; } else if(s>=0){ out.push((s+i-1)>>1); s=-1; } }
+      if(s>=0) out.push((s+arr.length-1)>>1); return out; };
+    let cols=null, rows=null;
+    for(const f of [0.5,0.42,0.6,0.35]){
+      const v=pick(colCnt,H,f), h=pick(rowCnt,W,f);
+      if(v.length>=5 && h.length>=3){ cols=v; rows=h; break; }
+    }
+    if(!cols) return null;
+    const merge=a=>{ const o=[]; a.forEach(v=>{ if(!o.length || v-o[o.length-1]>12) o.push(v); else o[o.length-1]=v; }); return o; };
+    cols=merge(cols); rows=merge(rows);
+    const bands=[];
+    for(let i=0;i<rows.length-1;i++){ if(rows[i+1]-rows[i]>=22) bands.push([rows[i],rows[i+1]]); }
+    if(cols.length<5 || !bands.length) return null;
+    return {cols, rows:bands};
+  }
+  async function ocrCell(w, src, x0, y0, cw, ch){
+    if(cw<8 || ch<8) return '';
+    const k=Math.min(3, Math.max(1, 120/Math.max(1,ch)));   // ô thấp thì phóng to cho dễ đọc
+    const c=document.createElement('canvas');
+    c.width=Math.round(cw*k); c.height=Math.round(ch*k);
+    const x=c.getContext('2d');
+    x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height);
+    x.imageSmoothingQuality='high';
+    x.drawImage(src, x0, y0, cw, ch, 0, 0, c.width, c.height);
+    try{
+      await w.setParameters({ tessedit_pageseg_mode: (ch<60? '7':'6') });
+      const { data:{ text } } = await w.recognize(c);
+      return String(text||'').replace(/\s+/g,' ').trim();
+    }catch(e){ return ''; }
+  }
+  async function pdfTableOcr(pdf){
+    const w=await ensureOCR();
+    try{ await w.setParameters({ preserve_interword_spaces:'1' }); }catch(e){}
+    const out=[]; let noGrid=0;
+    pdfAbort=false;
+    const onKey=e=>{ if(e.key==='Escape') pdfAbort=true; };
+    document.addEventListener('keydown', onKey);
+    try{
+      for(let p=1; p<=pdf.numPages; p++){
+        if(pdfAbort) break;
+        const page=await pdf.getPage(p);
+        const vp=page.getViewport({scale:2});
+        let c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height;
+        await page.render({canvasContext:c.getContext('2d'), viewport:vp}).promise;
+        const ang=detectSkew(c); if(ang) c=rotateCanvas(c,-ang);      // nắn thẳng trang scan
+        const g=detectTableGrid(c);
+        if(!g){ noGrid++; continue; }
+        for(const band of g.rows){
+          if(pdfAbort) break;
+          const cells=[];
+          for(let i=0;i<g.cols.length-1;i++){
+            const x0=g.cols[i]+3, x1=g.cols[i+1]-3;
+            cells.push(await ocrCell(w, c, x0, band[0]+3, x1-x0, band[1]-band[0]-6));
+          }
+          if(cells.some(t=>t)) out.push(cells);
+          toast(`Đang đọc bảng: trang ${p}/${pdf.numPages} · ${out.length} dòng (bấm Esc để dừng)`);
+          await new Promise(r=> setTimeout(r,0));
+        }
+      }
+    } finally { document.removeEventListener('keydown', onKey); }
+    if(noGrid) toast(`Đã đọc ${out.length} dòng. ${noGrid} trang không thấy đường kẻ bảng nên bỏ qua.`);
+    return out;
+  }
+
   async function pdfOcrPages(pdf){
     const w=await ensureOCR();
     try{ await w.setParameters({ tessedit_pageseg_mode:'6', preserve_interword_spaces:'1' }); }catch(e){}
@@ -2760,6 +2842,55 @@
     return ocrWorker;
   }
   // Làm nét ảnh trước khi đọc: phóng to, xám hóa, tăng tương phản -> đọc dấu tiếng Việt chuẩn hơn
+  // Ước lượng độ nghiêng của chữ: xoay thử nhiều góc, góc nào dòng chữ tách bạch nhất thì đúng
+  function detectSkew(src){
+    try{
+      const W0=src.width||src.naturalWidth, H0=src.height||src.naturalHeight;
+      if(!W0||!H0) return 0;
+      const sc=Math.min(1, 700/W0);
+      const w=Math.max(60,Math.round(W0*sc)), h=Math.max(60,Math.round(H0*sc));
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      const x=c.getContext('2d',{willReadFrequently:true});
+      x.fillStyle='#fff'; x.fillRect(0,0,w,h); x.drawImage(src,0,0,w,h);
+      const d=x.getImageData(0,0,w,h).data;
+      const g=new Float32Array(w*h); let sum=0;
+      for(let i=0,p=0;i<d.length;i+=4,p++){ const v=d[i]*.299+d[i+1]*.587+d[i+2]*.114; g[p]=v; sum+=v; }
+      const th=sum/(w*h)*0.88;                       // ngưỡng đen/trắng
+      const dark=new Uint8Array(w*h);
+      for(let p=0;p<g.length;p++) dark[p]= g[p]<th ? 1 : 0;
+      const score=ang=>{
+        const t=Math.tan(ang*Math.PI/180);
+        const rows=new Float32Array(h);
+        for(let yy=0; yy<h; yy++){
+          let s=0;
+          for(let xx=0; xx<w; xx+=2){
+            const y2=(yy + (xx-w/2)*t)|0;
+            if(y2>=0 && y2<h) s+=dark[y2*w+xx];
+          }
+          rows[yy]=s;
+        }
+        let v=0;
+        for(let i=1;i<h;i++){ const dd=rows[i]-rows[i-1]; v+=dd*dd; }
+        return v;
+      };
+      let best=0, bestV=-1;
+      for(let a=-12;a<=12;a+=1){ const v=score(a); if(v>bestV){ bestV=v; best=a; } }
+      for(let a=best-1; a<=best+1; a+=0.25){ const v=score(a); if(v>bestV){ bestV=v; best=a; } }
+      return Math.abs(best)<0.4 ? 0 : best;
+    }catch(e){ return 0; }
+  }
+  function rotateCanvas(src, deg){
+    const W=src.width||src.naturalWidth, H=src.height||src.naturalHeight;
+    const r=deg*Math.PI/180, cos=Math.abs(Math.cos(r)), sin=Math.abs(Math.sin(r));
+    const NW=Math.ceil(W*cos+H*sin), NH=Math.ceil(W*sin+H*cos);
+    const c=document.createElement('canvas'); c.width=NW; c.height=NH;
+    const x=c.getContext('2d');
+    x.fillStyle='#fff'; x.fillRect(0,0,NW,NH);
+    x.translate(NW/2,NH/2); x.rotate(r); x.imageSmoothingQuality='high';
+    x.drawImage(src,-W/2,-H/2);
+    return c;
+  }
+
   function prepImage(src){
     return new Promise(res=>{
       const done=(img)=>{
@@ -2768,12 +2899,17 @@
         let k=1;
         const small=Math.min(w0,h0);
         if(small<900) k=Math.min(3.5, 900/small);          // ảnh chụp màn hình thường nhỏ -> phóng to
-        const W=Math.min(Math.round(w0*k), 3000), H=Math.min(Math.round(h0*k), 3000);
+        let W=Math.min(Math.round(w0*k), 3000), H=Math.min(Math.round(h0*k), 3000);
         const c=document.createElement('canvas'); c.width=W; c.height=H;
         const x=c.getContext('2d', {willReadFrequently:true});
         x.imageSmoothingEnabled=true; x.imageSmoothingQuality='high';
         x.fillStyle='#fff'; x.fillRect(0,0,W,H);
         x.drawImage(img,0,0,W,H);
+        const ang=detectSkew(c);                    // ảnh chụp nghiêng -> nắn thẳng lại
+        if(ang){ const rc=rotateCanvas(c,-ang);
+          c.width=rc.width; c.height=rc.height;
+          x.drawImage(rc,0,0);
+          W=c.width; H=c.height; }
         try{
           const d=x.getImageData(0,0,W,H), p=d.data;
           let mn=255, mx=0;
