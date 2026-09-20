@@ -732,6 +732,21 @@
   .ratio-prev span{ font-size:12.5px; background:var(--brand-tint); color:var(--brand-700);
     padding:4px 10px; border-radius:999px }
   .ratio-prev b{ font-family:var(--mono) }
+  /* ---- Gợi ý từ nội dung văn bản ---- */
+  .vb-box{ background:#FFFDF5; border:1px solid #EADFC0; border-left:4px solid var(--amber);
+    border-radius:var(--radius); padding:14px 16px; margin-top:12px }
+  .vb-h{ font-size:13.5px; font-weight:800; color:#7A4B00; margin-bottom:10px }
+  .vb-pick{ font-size:15px; padding:10px 12px; border-radius:var(--radius-sm); margin-bottom:8px; line-height:1.5 }
+  .vb-pick.ok{ background:var(--green-tint); color:#0E5C2C }
+  .vb-pick.weak{ background:#FBEFD6; color:#7A4B00 }
+  .vb-pick b{ font-size:17px }
+  .vb-sc{ display:inline-block; margin-left:6px; font-family:var(--mono); font-size:11.5px; opacity:.8 }
+  .vb-rank{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px }
+  .vb-rank span{ font-family:var(--mono); font-size:11.5px; background:var(--line-2); color:var(--ink-2); padding:3px 9px; border-radius:999px }
+  .vb-ev-h{ font-size:12.5px; font-weight:700; color:var(--ink-2); margin:10px 0 6px }
+  .vb-ev{ border-top:1px solid #EADFC0; padding:8px 0 }
+  .vb-src{ font-family:var(--mono); font-size:11.5px; font-weight:700; color:var(--brand-700); margin-bottom:3px }
+  .vb-tx{ font-size:13.5px; line-height:1.6; color:var(--ink) }
 </style>
 </head>
 <body>
@@ -741,7 +756,7 @@
       <span class="mark" aria-hidden="true"></span>
       <div class="brand-txt">
         <strong>Văn bản &amp; Trắc nghiệm <span id="verBadge" class="ver-badge"></span></strong>
-        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b19.09-B</b></span>
+        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b20.09-F</b></span>
       </div>
     </div>
     <div id="storeWarn" class="store-warn" hidden>
@@ -876,6 +891,11 @@
             Tải câu hỏi (chọn môn sau)
           </button>
           <input id="quizInput" type="file" accept=".xlsx,.xls,.csv,.pdf,.json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv,application/pdf,application/json" hidden>
+          <button class="btn btn-block" id="btnLoadDocs">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h10l6 6v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M14 4v6h6"/></svg>
+            Tải bộ nhớ dữ liệu văn bản
+          </button>
+          <input type="file" id="docsInput" accept=".json,application/json" hidden>
           <button class="btn btn-block" id="btnPrune">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
             Dọn câu trùng ở đợt cũ
@@ -1491,14 +1511,8 @@
     const sig=subjSig();
     if(sel.dataset.sig===sig) return;      // danh sách môn không đổi -> giữ nguyên
     sel.dataset.sig=sig;
-    const bs=[...new Set(subjects.map(batchOf).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'vi',{numeric:true}));
     const opt=x=>`<option value="${x.id}">${esc(x.name)} · ${x.questions.length} câu${x.refOnly?' · chỉ tra cứu':''}</option>`;
-    let html=`<option value="all">Tất cả các môn (gộp, đã bỏ trùng)</option>`;
-    bs.forEach(b=>{ const inB=subjects.filter(x=> batchOf(x)===b);
-      html+=`<optgroup label="${esc(b)}"><option value="batch:${esc(b)}">— Tất cả môn ${esc(b)} —</option>${inB.map(opt).join('')}</optgroup>`; });
-    const rest=subjects.filter(x=> !batchOf(x));
-    if(rest.length) html+= bs.length? `<optgroup label="Chưa phân đợt">${rest.map(opt).join('')}</optgroup>` : rest.map(opt).join('');
-    sel.innerHTML = html;
+    sel.innerHTML = `<option value="all">Tất cả các môn (gộp, đã bỏ trùng)</option>` + subjects.map(opt).join('');
     if([...sel.options].some(o=>o.value===cur)) sel.value=cur;
   }
 
@@ -1512,7 +1526,7 @@
     head.hidden=false;
     head.innerHTML = q ? `Tìm thấy ${matched.length}/${pool.length} câu · ${startsOnly?'câu <b>bắt đầu bằng</b>':'từ khóa'}: <b>${esc(quizQuery.trim())}</b> <button class="link" id="clrQ">xem tất cả</button>` : `${pool.length} câu hỏi`;
     const cq=$('#clrQ'); if(cq) cq.onclick=()=>{ quizQuery=''; const el=$('#quizSearch'); if(el) el.value=''; renderResults(); };
-    if(!matched.length){ cont.innerHTML=`<div class="empty"><h3>Không có kết quả</h3><p>${startsOnly? `Không có câu hỏi nào <b>bắt đầu bằng</b> “${esc(quizQuery)}”. Bỏ tích ô “Chỉ tìm câu bắt đầu bằng từ khóa” để tìm rộng hơn.` : `Không có câu hỏi nào chứa “${esc(quizQuery)}”.`}</p></div>`; return; }
+    if(!matched.length){ cont.innerHTML=`<div class="empty"><h3>Không có kết quả</h3><p>${startsOnly? `Không có câu hỏi nào <b>bắt đầu bằng</b> “${esc(quizQuery)}”. Bỏ tích ô “Chỉ tìm câu bắt đầu bằng từ khóa” để tìm rộng hơn.` : `Không có câu hỏi nào chứa “${esc(quizQuery)}”.`}</p></div>` + vbSuggestHtml(quizQuery); return; }
     const show=matched.slice(0,QUIZ_CAP), letters=['A','B','C','D'];
     cont.innerHTML=show.map(it=>{
       const opts=it.answers.map((a,i)=>{ if(!a) return ''; const on=it.correct.includes(i);
@@ -1714,22 +1728,35 @@
     const pick=(arr,total,frac)=>{ const th=total*frac, out=[]; let s=-1;
       for(let i=0;i<arr.length;i++){ if(arr[i]>=th){ if(s<0) s=i; } else if(s>=0){ out.push((s+i-1)>>1); s=-1; } }
       if(s>=0) out.push((s+arr.length-1)>>1); return out; };
-    let cols=null, rows=null;
-    for(const f of [0.5,0.42,0.6,0.35]){
+    let cols=null, rows=null, bestN=0;
+    for(const f of [0.35,0.42,0.5,0.6]){
       const v=pick(colCnt,H,f), h=pick(rowCnt,W,f);
-      if(v.length>=5 && h.length>=3){ cols=v; rows=h; break; }
+      if(v.length>=5 && v.length<=16 && h.length>=3 && v.length>bestN){ bestN=v.length; cols=v; rows=h; }
     }
     if(!cols) return null;
-    const merge=a=>{ const o=[]; a.forEach(v=>{ if(!o.length || v-o[o.length-1]>12) o.push(v); else o[o.length-1]=v; }); return o; };
+    const gap=Math.max(10, Math.round(W/140));     // ảnh càng to, đường kẻ càng dày
+    const merge=a=>{ const o=[]; a.forEach(v=>{ if(!o.length || v-o[o.length-1]>gap) o.push(v); else o[o.length-1]=v; }); return o; };
     cols=merge(cols); rows=merge(rows);
     const bands=[];
-    for(let i=0;i<rows.length-1;i++){ if(rows[i+1]-rows[i]>=22) bands.push([rows[i],rows[i+1]]); }
+    const minH=Math.max(22, Math.round(H/55));
+    for(let i=0;i<rows.length-1;i++){ if(rows[i+1]-rows[i]>=minH) bands.push([rows[i],rows[i+1]]); }
     if(cols.length<5 || !bands.length) return null;
     return {cols, rows:bands};
   }
+  function cellHasInk(src,x0,y0,cw,ch){
+    try{
+      const s=Math.max(1, Math.round(Math.min(cw,ch)/40));
+      const x=src.getContext('2d',{willReadFrequently:true});
+      const d=x.getImageData(x0,y0,cw,ch).data;
+      let n=0, tot=0;
+      for(let i=0;i<d.length;i+=4*s){ tot++; if(d[i]*.299+d[i+1]*.587+d[i+2]*.114 < 170) n++; }
+      return tot>0 && n/tot > 0.004;
+    }catch(e){ return true; }
+  }
   async function ocrCell(w, src, x0, y0, cw, ch){
-    if(cw<8 || ch<8) return '';
-    const k=Math.min(3, Math.max(1, 120/Math.max(1,ch)));   // ô thấp thì phóng to cho dễ đọc
+    if(cw<10 || ch<10) return '';
+    if(!cellHasInk(src,x0,y0,cw,ch)) return '';             // ô trống -> bỏ qua, đỡ mất thời gian
+    const k=Math.min(2.5, Math.max(1, 200/Math.max(1,ch)));  // ô thấp thì phóng to cho dễ đọc
     const c=document.createElement('canvas');
     c.width=Math.round(cw*k); c.height=Math.round(ch*k);
     const x=c.getContext('2d');
@@ -1737,7 +1764,7 @@
     x.imageSmoothingQuality='high';
     x.drawImage(src, x0, y0, cw, ch, 0, 0, c.width, c.height);
     try{
-      await w.setParameters({ tessedit_pageseg_mode: (ch<60? '7':'6') });
+      await w.setParameters({ tessedit_pageseg_mode: (c.height<140? '7':'6') });
       const { data:{ text } } = await w.recognize(c);
       return String(text||'').replace(/\s+/g,' ').trim();
     }catch(e){ return ''; }
@@ -1753,7 +1780,9 @@
       for(let p=1; p<=pdf.numPages; p++){
         if(pdfAbort) break;
         const page=await pdf.getPage(p);
-        const vp=page.getViewport({scale:2});
+        const v1=page.getViewport({scale:1});
+        const sc=Math.max(2, Math.min(4.5, 3200/Math.max(1,v1.width)));   // ~300dpi: đọc chuẩn hơn hẳn
+        const vp=page.getViewport({scale:sc});
         let c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height;
         await page.render({canvasContext:c.getContext('2d'), viewport:vp}).promise;
         const ang=detectSkew(c); if(ang) c=rotateCanvas(c,-ang);      // nắn thẳng trang scan
@@ -2964,7 +2993,7 @@
         texts.push(t);
       }
       urls.forEach(u=> URL.revokeObjectURL(u));
-      ocrTextValue=texts.join('\n').trim();
+      ocrTextValue=cleanOcrText(texts.join('\n'));
       ocrBusy=false;
       if(!ocrTextValue){ ocrTextValue=''; }
       renderPhotoResult();
@@ -3011,19 +3040,64 @@
     renderOcrResults();
   }
 
+  // Làm sạch chữ OCR: bỏ dòng giao diện trình duyệt, dòng rác, ký hiệu lạ
+  const UI_JUNK=/(mozilla|firefox|chrome|edge|safari|http|www\.|\.com|\.vn|\.rdf|subscription|dispatcher|localhost|search|taskbar|windows)/i;
+  function vnSyllableRatio(line){
+    const toks=noAccent(line).replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(Boolean);
+    if(!toks.length) return 0;
+    let ok=0;
+    toks.forEach(t=>{ if(/^\d+$/.test(t)) { ok++; return; }
+      if(/^[a-z]{2,7}$/.test(t)) ok++; });          // âm tiết tiếng Việt: 2-7 chữ cái
+    return ok/toks.length;
+  }
+  function cleanOcrText(t){
+    const lines=String(t||'')
+      .replace(/[^\p{L}\p{N}\s\/\-\.,:;%()]/gu,' ')
+      .split(/\n+/).map(l=> l.replace(/\s+/g,' ').trim());
+    const keep=[];
+    for(let l of lines){
+      l=l.replace(/^[^\p{L}\p{N}]+/u,'').trim();           // bỏ ký hiệu đầu dòng (C, (2, ®…)
+      const letters=(l.match(/\p{L}/gu)||[]).length;
+      if(letters<6) continue;                               // dòng quá ngắn -> rác
+      if(UI_JUNK.test(l)) continue;                         // dòng của trình duyệt / thanh tác vụ
+      if(/(câu hỏi\s*\d+\s*trong|thời gian còn lại|nộp bài|kiểm tra kỳ)/i.test(l)) continue;
+      const solid=(noAccent(l).match(/\b[a-z]{3,}\b/g)||[]).length;
+      if(solid<4) continue;                                 // ít từ có nghĩa -> rác
+      if(vnSyllableRatio(l)<0.72) continue;                 // dòng lổn nhổn ký tự lạ -> bỏ
+      keep.push(l);
+    }
+    return keep.join('\n').trim();
+  }
+  let _idf=null, _idfKey='';
+  function poolIdf(pool){
+    const key=pool.length+':'+String((pool[0]&&pool[0].question)||'').slice(0,24);
+    if(_idf && _idfKey===key) return _idf;
+    const df=Object.create(null);
+    pool.forEach(it=>{ new Set(ocrTokens(it.question)).forEach(w=> df[w]=(df[w]||0)+1); });
+    _idf={df, n:Math.max(1,pool.length)}; _idfKey=key;
+    return _idf;
+  }
+  function tokWeight(w, idf){
+    const df=idf.df[w]||0;
+    const base = /\d/.test(w) ? 2.5 : 1;                 // mã văn bản, số hiệu -> rất có giá trị
+    return base * Math.max(0.08, Math.min(2.5, Math.log((idf.n+1)/(df+1))/2));
+  }
   function matchQuestions(queryText, pool){
-    const qtok=ocrTokens(queryText); const qset=new Set(qtok);
+    const qtok=ocrTokens(cleanOcrText(queryText)); const qset=new Set(qtok);
     if(qtok.length<2) return [];
+    const idf=poolIdf(pool);
+    let qw=0; qset.forEach(t=> qw+=tokWeight(t,idf));
     const scored=[];
     for(const it of pool){
-      const btok=ocrTokens(it.question); const bset=new Set(btok);
+      const bset=new Set(ocrTokens(it.question));
       if(!bset.size) continue;
-      let inter=0; bset.forEach(t=>{ if(qset.has(t)) inter++; });
+      let inter=0, bw=0, iw=0;
+      bset.forEach(t=>{ const w=tokWeight(t,idf); bw+=w; if(qset.has(t)){ inter++; iw+=w; } });
       if(!inter) continue;
-      const coverage=inter/bset.size;                       // phần câu hỏi xuất hiện trong ảnh
-      const dice=(2*inter)/(bset.size+qset.size);
-      let score=coverage*0.72+dice*0.28;
-      if(bset.size<4) score*=0.85;                          // câu quá ngắn dễ khớp nhầm
+      const coverage = bw? iw/bw : 0;                     // phần câu hỏi xuất hiện trong ảnh (tính theo trọng số)
+      const precision = qw? iw/qw : 0;                    // phần chữ trong ảnh dùng được
+      let score = coverage*0.70 + precision*0.30;
+      if(bset.size<4) score*=0.85;
       scored.push({item:it, score, coverage});
     }
     scored.sort((a,b)=> b.score-a.score);
@@ -3035,9 +3109,10 @@
     if(!subjects.length){ cont.innerHTML=`<div class="empty"><h3>Chưa có ngân hàng câu hỏi</h3><p>Vào mục <b>Ngân hàng</b> nạp câu hỏi trước để công cụ dò đáp án.</p></div>`; return; }
     const pool=poolFor(photoScope);
     const matches=matchQuestions(ocrTextValue, pool);
-    if(!matches.length){ cont.innerHTML=`<div class="empty"><h3>Không tìm thấy câu khớp</h3><p>Thử sửa lại phần chữ đọc được cho đúng, hoặc chụp lại rõ và thẳng hơn. Cũng có thể câu này chưa có trong ngân hàng đã chọn.</p></div>`; return; }
+    const strong=matches.filter(x=> x.score>=0.55);
+    if(!strong.length){ cont.innerHTML=`<div class="empty"><h3>Không tìm thấy câu khớp</h3><p>Thử sửa lại phần chữ đọc được cho đúng, hoặc chụp lại rõ và thẳng hơn. Cũng có thể câu này chưa có trong ngân hàng đã chọn.</p></div>`; return; }
     const letters=['A','B','C','D'];
-    cont.innerHTML=`<div class="ocr-reshead">Kết quả khớp nhất</div>`+matches.map((mm,idx)=>{
+    cont.innerHTML=`<div class="ocr-reshead">Kết quả khớp nhất</div>`+strong.map((mm,idx)=>{
       const it=mm.item; const pct=Math.round(mm.score*100);
       const opts=it.answers.map((a,i)=>{ if(!a) return ''; const on=it.correct.includes(i);
         return `<li class="opt ${on?'is-correct':''}"><span class="opt-key">${letters[i]}</span><span class="opt-text">${esc(a)}</span>${on?'<span class="opt-flag">Đáp án đúng</span>':''}</li>`;
@@ -3320,6 +3395,10 @@
     toast(`Đã xuất cauhoi.json — ${usable.length} môn · ${total} câu · ${kb} KB. Đẩy file này lên GitHub Pages cạnh file HTML.`);
   }
 
+  $('#btnLoadDocs').addEventListener('click', ()=> $('#docsInput').click());
+  $('#docsInput').addEventListener('change', async e=>{
+    const f=e.target.files[0]; e.target.value=''; if(f) await vbImportFile(f);
+  });
   $('#btnPrune').addEventListener('click', async ()=>{
     const r=await pruneOldBatches(true);
     if(!r.removed){ toast('Không có câu nào trùng giữa các đợt. Lưu ý: chỉ so các môn TRÙNG TÊN nhưng khác đợt.'); return; }
@@ -3511,6 +3590,123 @@
     }
   });
 
+  /* ================= Bộ nhớ nội dung VĂN BẢN + gợi ý đáp án ================= */
+  let vbDocs=null, vbIndex=null;
+  function vbTokens(s){
+    return noAccent(s).replace(/[^a-z0-9\/\-\s]/g,' ').split(/\s+/)
+      .filter(w=> w.length>=4 || /\d/.test(w));
+  }
+  let vbDF=null, vbN=1;
+  function vbWeight(w){
+    let base = /\d/.test(w) ? 3 : (w.length>=7 ? 1.6 : 1);
+    if(vbDF){ const df=vbDF[w]||0; const idf=Math.log((vbN+1)/(df+1)); base *= Math.max(0.05, Math.min(2.2, idf/2)); }
+    return base;
+  }
+  function vbBuildIndex(){
+    vbIndex=[];
+    if(!vbDocs) return;
+    (vbDocs.docs||[]).forEach(d=>{
+      (d.passages||[]).forEach(p=>{
+        vbIndex.push({ code:d.code, title:d.title||'', h:p.h||'', t:p.t||'', n:noAccent((p.h||'')+' '+(p.t||'')) });
+      });
+    });
+    vbDF=Object.create(null); vbN=Math.max(1, vbIndex.length);
+    vbIndex.forEach(p=>{ new Set(vbTokens(p.n)).forEach(w=>{ vbDF[w]=(vbDF[w]||0)+1; }); });
+  }
+  async function vbLoadSaved(){
+    try{
+      const rec=await metaGet('vbDocs');
+      if(rec && rec.value && rec.value.docs){ vbDocs=rec.value; vbBuildIndex(); }
+    }catch(e){}
+  }
+  async function vbImportFile(file){
+    try{
+      const obj=JSON.parse(await file.text());
+      const docs=obj && (obj.docs || (Array.isArray(obj)? obj : null));
+      if(!docs || !docs.length) { toast('File không đúng dạng bộ nhớ văn bản.'); return; }
+      vbDocs={format:'vbtn-docs', version:1, exportedAt:obj.exportedAt||Date.now(), docs};
+      await metaSet('vbDocs', vbDocs);
+      vbBuildIndex();
+      const n=vbIndex.length;
+      toast(`Đã tải bộ nhớ dữ liệu văn bản: ${docs.length} văn bản · ${n} đoạn. Chạy ngầm khi tra cứu.`);
+    }catch(e){ toast('Không đọc được file: '+(e&&e.message||e)); }
+  }
+  // tách câu hỏi và các đáp án từ đoạn chữ người dùng dán/đọc ảnh
+  function vbSplitQuery(raw){
+    const lines=String(raw||'').split(/\n+/).map(t=>t.trim()).filter(Boolean);
+    const opts=[], qs=[];
+    lines.forEach(t=>{
+      const m=t.match(/^\s*(?:[A-Da-d][\.\)\/]|[1-4][\.\)\/]|[-•])\s*(.+)$/);
+      if(m && m[1].length>3) opts.push(m[1].trim()); else qs.push(t);
+    });
+    if(opts.length>=2) return {q:qs.join(' ').trim(), opts};
+    // ô tìm kiếm nuốt mất xuống dòng -> tách tiếp theo dấu A. B. C. D. nằm giữa dòng
+    const one=String(raw||'').trim();
+    const parts=one.split(/\s+(?=(?:[A-Da-d]|[1-4])\s*[\.\)\/]\s+\S)/);
+    if(parts.length>=3){
+      const head=parts[0].trim();
+      const os=parts.slice(1).map(t=> t.replace(/^\s*(?:[A-Da-d]|[1-4])\s*[\.\)\/]\s*/,'').trim()).filter(t=>t.length>3);
+      if(os.length>=2) return {q:head, opts:os};
+    }
+    return {q:one, opts:[]};
+  }
+  function vbSearch(q, limit){
+    if(!vbIndex || !vbIndex.length) return [];
+    const toks=[...new Set(vbTokens(q))];
+    if(!toks.length) return [];
+    const res=[];
+    vbIndex.forEach(p=>{
+      let sc=0;
+      toks.forEach(w=>{ if(p.n.includes(w)) sc+=vbWeight(w); });
+      if(sc>0) res.push({p, sc: sc/Math.sqrt(Math.max(200,p.t.length)) });
+    });
+    res.sort((a,b)=> b.sc-a.sc);
+    return res.slice(0, limit||5);
+  }
+  function vbSuggest(raw){
+    if(!vbIndex || !vbIndex.length) return null;
+    const {q, opts}=vbSplitQuery(raw);
+    const hits=vbSearch(q||raw, 6);
+    if(!hits.length) return null;
+    const ctx=hits.map(h=>h.p.n).join(' \u0001 ');
+    let ranked=null;
+    if(opts.length>=2){
+      ranked=opts.map((o,i)=>{
+        const t=[...new Set(vbTokens(o))];
+        if(!t.length) return {i,o,sc:0};
+        let hit=0, tot=0;
+        t.forEach(w=>{ const wt=vbWeight(w); tot+=wt; if(ctx.includes(w)) hit+=wt; });
+        // thưởng thêm nếu cả cụm dài xuất hiện nguyên văn
+        const phrase=noAccent(o).slice(0,60);
+        const bonus = phrase.length>18 && ctx.includes(phrase) ? 0.35 : 0;
+        return {i, o, sc: (tot? hit/tot : 0) + bonus};
+      }).sort((a,b)=> b.sc-a.sc);
+    }
+    return {hits, ranked, hasOpts: opts.length>=2};
+  }
+  function vbSuggestHtml(raw){
+    const s=vbSuggest(raw);
+    if(!s) return '';
+    const L=['A','B','C','D','E','F'];
+    let html='<div class="vb-box"><div class="vb-h">Không có câu nào khớp trong bộ đề — gợi ý dựa trên nội dung văn bản</div>';
+    if(s.hasOpts && s.ranked && s.ranked.length){
+      const top=s.ranked[0], second=s.ranked[1];
+      const chac = top.sc>=0.5 && (!second || top.sc-second.sc>=0.15);
+      if(top.sc<0.25 || (second && top.sc-second.sc<0.05)){
+        html+='<div class="vb-pick weak">Không đủ căn cứ để chọn đáp án — mời đọc phần trích dưới đây.</div>';
+      } else
+      html+=`<div class="vb-pick ${chac?'ok':'weak'}">Đáp án có khả năng đúng: <b>${L[top.i]||(top.i+1)}</b> — ${esc(top.o.slice(0,140))}
+        <span class="vb-sc">${Math.round(top.sc*100)}% khớp${chac?'':' · chưa chắc chắn'}</span></div>`;
+      html+='<div class="vb-rank">'+s.ranked.slice(1).map(r=>`<span>${L[r.i]||(r.i+1)}: ${Math.round(r.sc*100)}%</span>`).join('')+'</div>';
+    }
+    html+='<div class="vb-ev-h">Căn cứ tìm được:</div>';
+    s.hits.slice(0,3).forEach(h=>{
+      html+=`<div class="vb-ev"><div class="vb-src">${esc(h.p.code)}${h.p.h?' · '+esc(h.p.h):''}</div><div class="vb-tx">${esc(h.p.t.slice(0,420))}${h.p.t.length>420?'…':''}</div></div>`;
+    });
+    html+='<p class="hint">Đây là gợi ý do máy dò trong văn bản, <b>không phải đáp án chính thức</b> — hãy đọc phần căn cứ để tự kiểm.</p></div>';
+    return html;
+  }
+
   /* ================= Nói để tìm (nhận dạng giọng nói của trình duyệt) ================= */
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   const KB_TIP='Cách chắc ăn: bấm vào ô tìm kiếm cho hiện bàn phím, rồi bấm phím micro ngay trên bàn phím để đọc.';
@@ -3696,6 +3892,7 @@
     renderOnlineStatus();
     if(!hasLocalData) syncRemote(false);   // 3) chỉ đọc cauhoi.json khi KHÔNG có nguồn kèm file
     await mergeDuplicateSubjects();        // dọn môn trùng tên (nếu máy đã có sẵn dữ liệu cùng tên)
+    await vbLoadSaved();
     renderResults(); refreshShellCounts(); setupMic();
     const so=$('#startsOnly'); if(so) so.onchange=e=>{ startsOnly=e.target.checked; renderResults(); };
   })();
