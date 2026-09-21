@@ -756,7 +756,7 @@
       <span class="mark" aria-hidden="true"></span>
       <div class="brand-txt">
         <strong>Văn bản &amp; Trắc nghiệm <span id="verBadge" class="ver-badge"></span></strong>
-        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b21.09-C</b></span>
+        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b21.09-G</b></span>
       </div>
     </div>
     <div id="storeWarn" class="store-warn" hidden>
@@ -1528,7 +1528,11 @@
   function renderResults(){
     fillScopeSelect($('#searchScope'));
     const cont=$('#quizList'), head=$('#resultHead');
-    if(!subjects.length){ head.hidden=true; cont.innerHTML=`<div class="empty"><h3>Chưa có câu hỏi</h3><p>Vào mục <b>Ngân hàng</b> để tải file câu hỏi theo môn, rồi quay lại đây tra cứu.</p></div>`; return; }
+    if(!subjects.length){
+      head.hidden=true;
+      const vbh = quizQuery.trim()? vbSuggestHtml(quizQuery) : '';
+      cont.innerHTML = vbh || `<div class="empty"><h3>Chưa có câu hỏi</h3><p>Vào mục <b>Ngân hàng</b> để tải file câu hỏi theo môn, rồi quay lại đây tra cứu.${(vbIndex&&vbIndex.length)?' Gõ hoặc dán câu hỏi để dò trong nội dung văn bản.':''}</p></div>`;
+      return; }
     const pool=poolFor(searchScope);
     const q=noAccent(quizQuery);
     const matched = q ? pool.filter(it=> startsOnly ? qNorm(it).startsWith(q) : hayOf(it).includes(q)) : pool;
@@ -3686,6 +3690,7 @@
     vbDF=Object.create(null); vbN=Math.max(1, vbIndex.length);
     vbIndex.forEach(p=>{ new Set(vbTokens(p.n)).forEach(w=>{ vbDF[w]=(vbDF[w]||0)+1; }); });
     vbBuildVocab();
+    vb2Build();
   }
   // Tự nạp bộ nhớ văn bản đặt cạnh trang: vanban.json (bản web) hoặc vanban.js (bản offline)
   async function vbApplyShared(obj, label){
@@ -3866,24 +3871,134 @@
     }
     return {hits, ranked, hasOpts: opts.length>=2};
   }
+  /* ---- Bộ dò v2: so theo CẶP TIẾNG liền nhau (hợp tiếng Việt), chỉ chấm phần KHÁC NHAU giữa các đáp án ---- */
+  let vbG=null, vbGDF=null, vbGN=1;
+  function vbSyl(s){ return noAccent(s).replace(/[^a-z0-9]+/g,' ').trim().split(' ').filter(Boolean); }
+  function vbGramsOf(syl){
+    const g=new Set();
+    for(let i=0;i<syl.length;i++){
+      if(/\d/.test(syl[i])) g.add(syl[i]);
+      if(i+1<syl.length) g.add(syl[i]+' '+syl[i+1]);
+    }
+    return g;
+  }
+  function vbFixSyl(arr){ return arr.map(w=> w.length>=5? vbFix(w) : w); }
+  function vb2Build(){
+    vbG=[]; vbGDF=Object.create(null);
+    (vbIndex||[]).forEach(p=>{ const g=vbGramsOf(vbSyl(p.h+' '+p.t)); vbG.push(g); g.forEach(x=>{ vbGDF[x]=(vbGDF[x]||0)+1; }); });
+    vbGN=Math.max(1,vbG.length);
+  }
+  function gW(g){ const df=vbGDF[g]||0; return df? Math.log((vbGN+1)/(df+0.5)) : Math.log(vbGN+1)*0.5; }
+  function vb2Search(qg, K){
+    const res=[];
+    for(let i=0;i<vbG.length;i++){
+      const pg=vbG[i]; let sc=0;
+      qg.forEach(g=>{ if(pg.has(g) && vbGDF[g]) sc+=gW(g); });
+      if(sc>0) res.push({i, sc: sc/(1+Math.log(1+pg.size/300))});
+    }
+    res.sort((a,b)=>b.sc-a.sc);
+    return res.slice(0,K||8);
+  }
+  const VB_ALL=/(tất cả|đều đúng|cả\s*(?:\d|[a-d])\s*(?:và|,)|cả\s+(?:hai|ba|2|3)\s+(?:đáp án|phương án)|đáp án\s*\d+\s*và\s*\d+)/i;
+  const VB_NEG=/(KHÔNG|không phải|không đúng|không bao gồm|không thuộc|ngoại trừ)/;
+  function vb2Suggest(raw){
+    if(!vbG || !vbG.length) return null;
+    const {q,opts}=vbSplitQuery(raw);
+    const qg=vbGramsOf(vbFixSyl(vbSyl(q||raw)));
+    const optG=opts.map(o=> vbGramsOf(vbFixSyl(vbSyl(o))));
+    const allG=new Set(qg); optG.forEach(G=>G.forEach(x=>allG.add(x)));
+    const hits=vb2Search(allG, 10);
+    if(!hits.length) return null;
+    if(opts.length<2) return {hits:hits.map(h=>({p:vbIndex[h.i]})), ranked:null, hasOpts:false};
+    const neg=VB_NEG.test(q);
+    // đoạn ứng viên + độ liên quan tới câu hỏi
+    const cand=new Map(); hits.forEach(h=>cand.set(h.i,0));
+    optG.forEach(G=>{ const u=new Set(qg); G.forEach(x=>u.add(x)); vb2Search(u,4).forEach(h=>cand.set(h.i,0)); });
+    let qmax=0; cand.forEach((_,i)=>{ let s=0; qg.forEach(g=>{ if(vbG[i].has(g) && vbGDF[g]) s+=gW(g); }); cand.set(i,s); if(s>qmax) qmax=s; });
+    const common=new Set([...optG[0]].filter(g=> optG.every(G=>G.has(g))));
+    const ranked=opts.map((o,k)=>{
+      if(VB_ALL.test(o)) return {i:k, o, sc:0, all:true, p:null};
+      let D=[...optG[k]].filter(g=>!common.has(g)); if(!D.length) D=[...optG[k]];
+      const tot=D.reduce((a,g)=>a+gW(g),0)||1;
+      let best=0, bestI=-1, bestCov=0;
+      cand.forEach((rel,i)=>{
+        let m=0; D.forEach(g=>{ if(vbG[i].has(g)) m+=gW(g); });
+        const cov=m/tot, sc=cov*(0.55+0.45*(qmax? rel/qmax : 0));
+        if(sc>best){ best=sc; bestI=i; bestCov=cov; }
+      });
+      return {i:k, o, sc:best, cov:bestCov, p: bestI>=0? vbIndex[bestI] : null};
+    });
+    // "Tất cả đáp án trên": đúng khi các đáp án còn lại đều có căn cứ vững
+    const others=ranked.filter(r=>!r.all);
+    ranked.filter(r=>r.all).forEach(r=>{
+      const strong=others.filter(x=>x.cov>=0.6).length;
+      if(others.length>=2 && strong>=Math.min(3,others.length)){ r.sc=1; r.cov=1; others.forEach(x=>{ x.sc*=0.75; }); }   // mọi đáp án đều có căn cứ -> "Tất cả"
+      else { r.sc = strong>=2 ? 0.5 : 0.05; r.cov=r.sc; }
+    });
+    // đáp án GỘP: VD "Khách hàng cá nhân, khách hàng tổ chức" chứa nội dung của cả A lẫn B
+    if(!neg && !ranked.some(r=>r.all && r.sc>=1)){
+      const keyG=optG.map(G=>[...G].filter(g=>!common.has(g)));
+      ranked.forEach((r,k)=>{
+        if(r.all) return;
+        const inside=ranked.filter((x,i)=> i!==k && !x.all && keyG[i].length && x.cov>=0.4 &&
+          keyG[i].filter(g=>optG[k].has(g)).length/keyG[i].length>=0.5);
+        if(inside.length>=2) r.combo=true;
+      });
+      const combos=ranked.filter(r=>r.combo);
+      if(combos.length===1){ combos[0].sc=1; combos[0].cov=1; ranked.forEach(x=>{ if(x!==combos[0] && !x.all) x.sc*=0.75; }); }   // đáp án gộp thắng các đáp án thành phần
+    }
+    // câu Có/Không: "X" với "Không X" -> xem ngay trước cụm từ của câu hỏi trong văn bản có chữ "không/cấm" không
+    if(opts.length===2){
+      const a=vbSyl(opts[0]).join(' '), b=vbSyl(opts[1]).join(' ');
+      const negIdx = ('khong '+a===b)?1 : ('khong '+b===a)?0 : (a==='co'&&b==='khong')?1 : (a==='khong'&&b==='co')?0 : -1;
+      if(negIdx>=0){
+        const STOP=new Set(['co','duoc','phep','khong','la','gi','nao','hay','the','nhu','cua','va','cho','tai','trong','nguoi','dung','thi','se','bi']);
+        const qs=vbFixSyl(vbSyl(q)).filter(w=>!STOP.has(w));
+        const qb=[]; for(let t=0;t+1<qs.length;t++) qb.push(qs[t]+' '+qs[t+1]);
+        qb.sort((x,y)=>gW(y)-gW(x));
+        let found=null;
+        [...cand.keys()].sort((x,y)=>cand.get(y)-cand.get(x)).slice(0,6).some(i=>{
+          const syl=vbSyl(vbIndex[i].h+' '+vbIndex[i].t);
+          for(const bg of qb.slice(0,5)){
+            const [u,v]=bg.split(' ');
+            for(let t=0;t+1<syl.length;t++) if(syl[t]===u && syl[t+1]===v){
+              const win=syl.slice(Math.max(0,t-8), t);
+              found=(win.includes('khong')||win.includes('cam'))? 'neg' : 'pos';
+              return true;
+            }
+          }
+          return false;
+        });
+        if(found){ const w=(found==='neg')? negIdx : 1-negIdx; ranked.forEach(r=>{ r.sc=(r.i===w)?0.8:0.2; r.cov=r.sc; }); }
+      }
+    }
+    ranked.sort((a,b)=> neg? a.sc-b.sc : b.sc-a.sc);
+    return {hits:hits.map(h=>({p:vbIndex[h.i]})), ranked, hasOpts:true, neg};
+  }
   function vbSuggestHtml(raw){
-    const s=vbSuggest(raw);
+    const s=vb2Suggest(raw);
     if(!s) return '';
     const L=['A','B','C','D','E','F'];
     let html='<div class="vb-box"><div class="vb-h">Không có câu nào khớp trong bộ đề — gợi ý dựa trên nội dung văn bản</div>';
+    let ev=s.hits.map(h=>h.p);
     if(s.hasOpts && s.ranked && s.ranked.length){
       const top=s.ranked[0], second=s.ranked[1];
-      const chac = top.sc>=0.5 && (!second || top.sc-second.sc>=0.15);
-      if(top.sc<0.25 || (second && top.sc-second.sc<0.05)){
+      const gap = second? Math.abs(top.sc-second.sc) : top.sc;
+      const weakTop = s.neg ? false : top.sc<0.3;
+      if(weakTop || gap<0.08){
         html+='<div class="vb-pick weak">Không đủ căn cứ để chọn đáp án — mời đọc phần trích dưới đây.</div>';
-      } else
-      html+=`<div class="vb-pick ${chac?'ok':'weak'}">Đáp án có khả năng đúng: <b>${L[top.i]||(top.i+1)}</b> — ${esc(top.o.slice(0,140))}
-        <span class="vb-sc">${Math.min(100,Math.round(top.sc*100))}% khớp${chac?'':' · chưa chắc chắn'}</span></div>`;
-      html+='<div class="vb-rank">'+s.ranked.slice(1).map(r=>`<span>${L[r.i]||(r.i+1)}: ${Math.min(100,Math.round(r.sc*100))}%</span>`).join('')+'</div>';
+        html+='<div class="vb-rank">'+s.ranked.map(r=>`<span>${L[r.i]||(r.i+1)}: ${Math.min(100,Math.round(r.sc*100))}%</span>`).join('')+'</div>';
+      } else {
+        const chac = !s.neg && top.sc>=0.6 && gap>=0.2;
+        html+=`<div class="vb-pick ${chac?'ok':'weak'}">Đáp án có khả năng đúng: <b>${L[top.i]||(top.i+1)}</b> — ${esc(top.o.slice(0,140))}
+          <span class="vb-sc">${s.neg?'câu hỏi phủ định: chọn đáp án ÍT căn cứ nhất':Math.min(100,Math.round(top.sc*100))+'% khớp'}${chac?'':' · chưa chắc chắn'}</span></div>`;
+        html+='<div class="vb-rank">'+s.ranked.slice(1).map(r=>`<span>${L[r.i]||(r.i+1)}: ${Math.min(100,Math.round(r.sc*100))}%</span>`).join('')+'</div>';
+        if(top.p) ev=[top.p].concat(ev.filter(p=>p!==top.p));
+      }
     }
     html+='<div class="vb-ev-h">Căn cứ tìm được:</div>';
-    s.hits.slice(0,3).forEach(h=>{
-      html+=`<div class="vb-ev"><div class="vb-src">${esc(h.p.code)}${h.p.h?' · '+esc(h.p.h):''}</div><div class="vb-tx">${esc(h.p.t.slice(0,420))}${h.p.t.length>420?'…':''}</div></div>`;
+    ev.slice(0,3).forEach(p=>{
+      html+=`<div class="vb-ev"><div class="vb-src">${esc(p.code)}${p.h?' · '+esc(p.h):''}</div><div class="vb-tx">${esc(p.t.slice(0,420))}${p.t.length>420?'…':''}</div></div>`;
     });
     html+='<p class="hint">Đây là gợi ý do máy dò trong văn bản, <b>không phải đáp án chính thức</b> — hãy đọc phần căn cứ để tự kiểm.</p></div>';
     return html;
