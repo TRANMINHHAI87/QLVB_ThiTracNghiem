@@ -756,7 +756,7 @@
       <span class="mark" aria-hidden="true"></span>
       <div class="brand-txt">
         <strong>Văn bản &amp; Trắc nghiệm <span id="verBadge" class="ver-badge"></span></strong>
-        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b20.09-F</b></span>
+        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b21.09-C</b></span>
       </div>
     </div>
     <div id="storeWarn" class="store-warn" hidden>
@@ -896,6 +896,15 @@
             Tải bộ nhớ dữ liệu văn bản
           </button>
           <input type="file" id="docsInput" accept=".json,application/json" hidden>
+          <button class="btn btn-block" id="btnAddDoc">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Thêm văn bản vào bộ nhớ (PDF/TXT)
+          </button>
+          <input type="file" id="addDocInput" accept=".pdf,.txt,.md" hidden>
+          <button class="btn btn-block" id="btnExportDocs">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+            Xuất bộ nhớ văn bản (vanban.json)
+          </button>
           <button class="btn btn-block" id="btnPrune">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>
             Dọn câu trùng ở đợt cũ
@@ -1993,6 +2002,7 @@
       const note = (m.note>=0? get(m.note) : '');
       qs.push({stt,question,answers,correct,note});
     }
+    qs=qs.filter(q=> !isJunkQuestion(q));   // bỏ hàng đánh số cột
     return qs;
   }
 
@@ -2254,7 +2264,7 @@
 
   /* ================= EXAM / PRACTICE ENGINE ================= */
   let revFilter='all';
-  let examMode='exam', examBatch='all', selSubjects=new Set(), practiceShuffle=true, practiceInstant=true, examInstant=true, examNoShuffle=false, selInit=false;
+  let examMode='exam', examBatch='all', examBatches=new Set(), selSubjects=new Set(), practiceShuffle=true, practiceInstant=true, examInstant=true, examNoShuffle=false, selInit=false;
   function sample(arr,n){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a.slice(0,Math.max(0,n)); }
   function shuffle(arr){ return sample(arr, arr.length); }
   async function getLastExamMap(){ const m=await metaGet('lastExam'); return (m&&m.value)||{}; }
@@ -2295,12 +2305,14 @@
 
   /* ---- Chia tỉ lệ: môn chính 70%, môn phụ 30% (môn phụ ít câu nhất 10%, còn 20% chia đều) ---- */
   let ratioOn=false, mainSubId=null;
+  function batchOk(q){ return !examBatches.size || examBatches.has(qBatch(q)); }
+  function batchLabel(){ return examBatches.size? [...examBatches].join(' + ') : 'all'; }
   function ratioGroups(ids){
     const seen=new Set(), gs=[];
     const order=[mainSubId].concat(ids.filter(i=> i!==mainSubId)).filter(i=> i!=null && ids.indexOf(i)>=0);
     order.forEach(id=>{
       const s=subjects.find(x=>x.id===id); if(!s) return;
-      let list=(s.questions||[]).filter(q=> examBatch==='all' || qBatch(q)===examBatch);
+      let list=(s.questions||[]).filter(batchOk);
       list=list.filter(q=>{ const k=qKeyC(q); if(seen.has(k)) return false; seen.add(k); return true; });
       gs.push({id, name:s.name, list});
     });
@@ -2363,10 +2375,10 @@
     const ids=[...selSubjects].filter(id=> subjects.some(s=>s.id===id));
     if(!ids.length){ toast('Hãy chọn ít nhất một môn.'); return; }
     let pool=poolForSubjects(ids);
-    if(examBatch!=='all') pool=pool.filter(q=> qBatch(q)===examBatch);
+    if(examBatches.size) pool=pool.filter(batchOk);
     if(!pool.length){ toast('Không có câu hỏi nào trong phạm vi đã chọn.'); return; }
-    const sourceName=ids.map(id=>(subjects.find(s=>s.id===id)||{}).name).filter(Boolean).join(' + ')+(examBatch!=='all'?' · '+examBatch:'')+((mode==='exam'&&ratioOn&&ids.length>=2)?' · 75/25':'');
-    const key='src:'+ids.slice().sort((a,b)=>a-b).join(',')+'|'+examBatch;
+    const sourceName=ids.map(id=>(subjects.find(s=>s.id===id)||{}).name).filter(Boolean).join(' + ')+(examBatches.size?' · '+batchLabel():'')+((mode==='exam'&&ratioOn&&ids.length>=2)?' · 75/25':'');
+    const key='src:'+ids.slice().sort((a,b)=>a-b).join(',')+'|'+batchLabel();
     if(mode==='exam'){
       const lastMap=await getLastExamMap();
       let raw;
@@ -2443,8 +2455,8 @@
     const hist=await metaGet('examHistory'); const arr=(hist&&hist.value)||[];
     const poolAll=poolForSubjects([...selSubjects]);
     const batches=[...new Set(poolAll.map(qBatch).filter(Boolean))].sort((a,b)=> batchRankOf(b)-batchRankOf(a));
-    if(examBatch!=='all' && batches.indexOf(examBatch)<0) examBatch='all';
-    const pool = examBatch==='all'? poolAll : poolAll.filter(q=> qBatch(q)===examBatch);
+    [...examBatches].forEach(b=>{ if(batches.indexOf(b)<0) examBatches.delete(b); });
+    const pool = examBatches.size? poolAll.filter(batchOk) : poolAll;
     const noBatch = poolAll.filter(q=> !qBatch(q)).length;
     const facts = examMode==='exam'
       ? `<li><b>${EXAM_SIZE}</b> câu/đề</li><li><b>${examMin}</b> phút</li><li>Thang <b>100</b>đ</li><li>Lặp <b>30%</b> đề trước</li>`
@@ -2456,10 +2468,10 @@
       </div>
       <div class="exam-config">
         <div class="cfg-label">Chọn môn để ${examMode==='exam'?'thi':'ôn'} (có thể chọn nhiều môn để trộn)</div>
-        ${batches.length?`<div class="batch-chips">${['all'].concat(batches).map(b=>`<button class="chip ${examBatch===b?'on':''}" data-batch="${esc(b)}">${b==='all'?`Tất cả đợt (${poolAll.length})`:esc(b)+` (${poolAll.filter(q=>qBatch(q)===b).length})`}</button>`).join('')}</div>`:''}
+        ${batches.length?`<div class="batch-chips">${['all'].concat(batches).map(b=>`<button class="chip ${(b==='all'? !examBatches.size : examBatches.has(b))?'on':''}" data-batch="${esc(b)}">${b==='all'?`Tất cả đợt (${poolAll.length})`:esc(b)+` (${poolAll.filter(q=>qBatch(q)===b).length})`}</button>`).join('')}</div>`:''}
         ${pickMarkup(shown)}
         ${subjects.length-usable.length? `<p class="hint">${subjects.length-usable.length} môn đang đặt “chỉ tra cứu” nên không hiện ở đây.</p>`:''}
-        ${noBatch&&examBatch!=='all'? `<p class="hint">${noBatch} câu chưa gán đợt nên không nằm trong đợt đang chọn (vẫn tra cứu được).</p>`:''}
+        ${noBatch&&examBatches.size? `<p class="hint">${noBatch} câu chưa gán đợt nên không nằm trong đợt đang chọn (vẫn tra cứu được).</p>`:''}
         <div class="pool-line ${selSubjects.size?'':'warn-txt'}">${selSubjects.size? `Đã chọn <b>${pool.length}</b> câu từ ${selSubjects.size} môn (đã bỏ câu trùng)` : 'Chưa chọn môn nào — hãy tích chọn ít nhất một môn ở trên.'}</div>
         ${(examMode==='exam' && selSubjects.size>=2)?`<div class="ratio">
           <label class="mini"><input type="checkbox" id="ratioOn" ${ratioOn?'checked':''}> Chia tỉ lệ: <b>môn chính 75%</b> · môn phụ 25%</label>
@@ -2498,7 +2510,9 @@
       </div>
       ${arr.length?`<div class="hist"><div class="hist-h">Lịch sử gần đây</div>${arr.map(h=>`<div class="hist-row"><span class="hist-name">${esc(h.name)}${h.mode==='practice'?' · ôn':''}</span><span class="hist-score">${Math.round(h.correct/h.total*100)}đ</span><span class="hist-sub">${h.correct}/${h.total} · ${fmtDate(h.at)}</span></div>`).join('')}</div>`:''}`;
     area.querySelectorAll('.mode-btn').forEach(b=> b.onclick=()=>{ examMode=b.dataset.mode; renderExam(); });
-    area.querySelectorAll('[data-batch]').forEach(b=> b.onclick=()=>{ examBatch=b.dataset.batch; renderExam(); });
+    area.querySelectorAll('[data-batch]').forEach(b=> b.onclick=()=>{ const v=b.dataset.batch;
+      if(v==='all') examBatches.clear(); else if(examBatches.has(v)) examBatches.delete(v); else examBatches.add(v);
+      renderExam(); });
     area.querySelectorAll('.sc-chk').forEach(c=> c.onchange=()=>{ const id=Number(c.dataset.id); if(c.checked) selSubjects.add(id); else selSubjects.delete(id); renderExam(); });
     wirePick();
     const fxc=$('#swFx'); if(fxc) fxc.onchange=e=> fxOn=e.target.checked;
@@ -3270,6 +3284,20 @@
     try{ const t=(el.textContent||'').trim(); return t? JSON.parse(t) : null; }catch(_){ return null; }
   }
   // Gộp các môn TRÙNG TÊN thành một (dữ liệu kèm file nhập vào môn sẵn có, không tạo bản thứ hai)
+  function isJunkQuestion(q){
+    const num=t=> /^\s*\(?\d{1,3}\)?\s*$/.test(String(t==null?'':t));
+    return num(q.question) && (q.answers||[]).filter(Boolean).every(num);
+  }
+  async function purgeJunkQuestions(){
+    let n=0;
+    for(const s of subjects){
+      const before=(s.questions||[]).length;
+      s.questions=(s.questions||[]).filter(q=> !isJunkQuestion(q));
+      if(s.questions.length!==before){ n+=before-s.questions.length; await subjectPut(s); }
+    }
+    if(n){ subjects=await subjectsAll(); toast(`Đã dọn ${n} dòng rác (hàng đánh số cột của bảng Excel).`); }
+    return n;
+  }
   async function mergeDuplicateSubjects(){
     const groups=new Map();
     subjects.forEach(s=>{ const k=noAccent(s.name); if(!groups.has(k)) groups.set(k,[]); groups.get(k).push(s); });
@@ -3396,6 +3424,9 @@
   }
 
   $('#btnLoadDocs').addEventListener('click', ()=> $('#docsInput').click());
+  $('#btnAddDoc').addEventListener('click', ()=> $('#addDocInput').click());
+  $('#addDocInput').addEventListener('change', async e=>{ const f=e.target.files[0]; e.target.value=''; if(f) await vbAddFromFile(f); });
+  $('#btnExportDocs').addEventListener('click', vbExport);
   $('#docsInput').addEventListener('change', async e=>{
     const f=e.target.files[0]; e.target.value=''; if(f) await vbImportFile(f);
   });
@@ -3454,6 +3485,15 @@
     a.addEventListener('canplaythrough',ok,{once:true}); a.addEventListener('error',bad,{once:true});
     setTimeout(bad,2500); a.preload='auto'; a.src=url; a.load(); }); }
   (async()=>{ for(const k of Object.keys(SND_FILES)){ for(const u of SND_FILES[k]){ const r=await probeSnd(u); if(r){ EXT[k]=r; break; } } } })();
+  let viVoice=null;
+  function pickViVoice(){
+    try{
+      const vs=(window.speechSynthesis && speechSynthesis.getVoices()) || [];
+      viVoice = vs.find(v=> /^vi([-_]|$)/i.test(v.lang||'')) || null;
+    }catch(e){ viVoice=null; }
+    return viVoice;
+  }
+  if('speechSynthesis' in window){ pickViVoice(); try{ speechSynthesis.addEventListener('voiceschanged', pickViVoice); }catch(e){} }
   function actx(){ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended') ac.resume(); return ac; }
   function bell(f,t0,dur,vol){ const c=actx(),o=c.createOscillator(),g=c.createGain();
     o.type='sine'; o.frequency.setValueAtTime(f,c.currentTime+t0);
@@ -3479,15 +3519,13 @@
     try{
       if(kind==='correct'){ bell(1318,0,.5,.35); bell(1760,.16,.6,.3); }          // ting… ting
       else if(kind==='wrong'){
-        if('speechSynthesis' in window){
+        if(!viVoice) pickViVoice();
+        if(viVoice){                                   // CHỈ đọc khi máy có giọng tiếng Việt thật
           const u=new SpeechSynthesisUtterance('Rất tiếc, sai rồi');
-          u.lang='vi-VN'; u.rate=1.05; u.pitch=1;
-          const vs=speechSynthesis.getVoices()||[];
-          const vi=vs.find(v=>/vi/i.test(v.lang));
-          if(vi) u.voice=vi;
-          if(vi || vs.length){ speechSynthesis.cancel(); speechSynthesis.speak(u); return; }
+          u.voice=viVoice; u.lang=viVoice.lang; u.rate=1.05; u.pitch=1;
+          speechSynthesis.cancel(); speechSynthesis.speak(u); return;
         }
-        bell(392,0,.22,.28); bell(330,.16,.28,.26); bell(262,.34,.5,.24);          // tiếc nuối
+        bell(392,0,.22,.28); bell(330,.16,.28,.26); bell(262,.34,.5,.24);          // không có giọng Việt -> chuông trầm
       }
     }catch(e){}
   }
@@ -3596,6 +3634,41 @@
     return noAccent(s).replace(/[^a-z0-9\/\-\s]/g,' ').split(/\s+/)
       .filter(w=> w.length>=4 || /\d/.test(w));
   }
+  // Chịu lỗi OCR: "chimg" vẫn khớp "chung", "vift" vẫn khớp "viet"
+  let vbVocab=null, vbBuck=null, vbFixCache=null;
+  function vbBuildVocab(){
+    vbVocab=Object.create(null); vbBuck=Object.create(null); vbFixCache=Object.create(null);
+    vbIndex.forEach(p=>{ vbTokens(p.n).forEach(w=>{ vbVocab[w]=(vbVocab[w]||0)+1; }); });
+    Object.keys(vbVocab).forEach(w=>{
+      const k=w.length+':'+w[0];
+      (vbBuck[k]=vbBuck[k]||[]).push(w);
+    });
+  }
+  function ed1(a,b){                       // đúng/sai lệch tối đa 1 ký tự
+    if(a===b) return true;
+    const la=a.length, lb=b.length;
+    if(Math.abs(la-lb)>1) return false;
+    let i=0,j=0,diff=0;
+    while(i<la && j<lb){
+      if(a[i]===b[j]){ i++; j++; continue; }
+      if(++diff>1) return false;
+      if(la>lb) i++; else if(lb>la) j++; else { i++; j++; }
+    }
+    return diff + (la-i) + (lb-j) <= 1;
+  }
+  function vbFix(w){
+    if(!vbVocab) return w;
+    if(vbVocab[w]) return w;
+    if(w.length<5 || /\d/.test(w)) return w;          // từ ngắn và số: không đoán bừa
+    if(vbFixCache[w]!==undefined) return vbFixCache[w];
+    let best=w, bestN=0;
+    for(const L of [w.length, w.length-1, w.length+1]){
+      const arr=vbBuck[L+':'+w[0]]; if(!arr) continue;
+      for(const c of arr){ if((vbVocab[c]||0)>bestN && ed1(w,c)){ best=c; bestN=vbVocab[c]; } }
+    }
+    vbFixCache[w]=best;
+    return best;
+  }
   let vbDF=null, vbN=1;
   function vbWeight(w){
     let base = /\d/.test(w) ? 3 : (w.length>=7 ? 1.6 : 1);
@@ -3612,7 +3685,46 @@
     });
     vbDF=Object.create(null); vbN=Math.max(1, vbIndex.length);
     vbIndex.forEach(p=>{ new Set(vbTokens(p.n)).forEach(w=>{ vbDF[w]=(vbDF[w]||0)+1; }); });
+    vbBuildVocab();
   }
+  // Tự nạp bộ nhớ văn bản đặt cạnh trang: vanban.json (bản web) hoặc vanban.js (bản offline)
+  async function vbApplyShared(obj, label){
+    const docs=obj && obj.docs;
+    if(!docs || !docs.length) return false;
+    const stamp=Number(obj.exportedAt)||0;
+    const rec=await metaGet('vbSharedStamp');
+    if(rec && Number(rec.value)>=stamp && vbDocs) return false;        // đã có bản này rồi
+    const merged=docs.slice();                                        // văn bản dùng chung là chuẩn
+    const codes=new Set(docs.map(d=>d.code));
+    if(vbDocs && vbDocs.docs) vbDocs.docs.forEach(d=>{ if(!codes.has(d.code)) merged.push(d); });   // giữ văn bản tự thêm trên máy
+    vbDocs={format:'vbtn-docs', version:1, exportedAt:stamp||Date.now(), docs:merged};
+    await metaSet('vbDocs', vbDocs);
+    await metaSet('vbSharedStamp', stamp);
+    vbBuildIndex();
+    toast(`Đã cập nhật bộ nhớ văn bản ${label}: ${merged.length} văn bản · ${vbIndex.length} đoạn.`);
+    return true;
+  }
+  async function vbSyncShared(){
+    if(/^https?:/.test(location.protocol)){
+      try{
+        const r=await fetch('vanban.json?t='+Date.now(), {cache:'no-store'});
+        if(r.ok) return await vbApplyShared(await r.json(), 'từ trang web');
+      }catch(e){}
+      return false;
+    }
+    // mở file trực tiếp: đọc vanban.js đặt cùng thư mục (fetch bị chặn nên dùng thẻ script)
+    if(!window.VBTN_DOCS){
+      await new Promise(res=>{
+        const sc=document.createElement('script'); sc.src='vanban.js?t='+Date.now();
+        sc.onload=()=>res(); sc.onerror=()=>{ sc.remove(); res(); };
+        document.head.appendChild(sc);
+        setTimeout(res, 8000);
+      });
+    }
+    if(window.VBTN_DOCS) return await vbApplyShared(window.VBTN_DOCS, 'từ file vanban.js');
+    return false;
+  }
+
   async function vbLoadSaved(){
     try{
       const rec=await metaGet('vbDocs');
@@ -3632,6 +3744,76 @@
     }catch(e){ toast('Không đọc được file: '+(e&&e.message||e)); }
   }
   // tách câu hỏi và các đáp án từ đoạn chữ người dùng dán/đọc ảnh
+  // Thêm/ cập nhật văn bản vào bộ nhớ ngay trong app
+  function vbSplitPassages(text){
+    const clean=String(text||'').replace(/\r/g,'').replace(/[ \t]+/g,' ').replace(/\n{3,}/g,'\n\n');
+    const parts=clean.split(/(?=\n\s*(?:Điều|DIEU|Dieu)\s+\d+)/);
+    const out=[];
+    parts.forEach(seg=>{
+      let t=seg.trim(); if(t.length<80) return;
+      const hm=t.match(/^(?:Điều|DIEU|Dieu)\s+\d+[^\n]{0,110}/);
+      const h=hm? hm[0].trim() : '';
+      while(t.length>2000){
+        let cut=t.lastIndexOf('\n',2000); if(cut<700) cut=2000;
+        out.push({h, t:t.slice(0,cut).replace(/\s+/g,' ').trim()});
+        t=t.slice(cut).trim();
+      }
+      if(t.length>=80) out.push({h, t:t.replace(/\s+/g,' ').trim()});
+    });
+    return out;
+  }
+  function vbGuessCode(name){
+    const m=String(name).replace(/_/g,' ').match(/(\d{2,6})\s*[-\/]\s*([A-Za-zĐđ][A-Za-zĐđ0-9]*(?:\s*[-\/]\s*[A-Za-zĐđ0-9]+){0,3})/);
+    return m? (m[1]+'/'+m[2].replace(/\s*[-\/]\s*/g,'-')) : '';
+  }
+  async function vbAddFromFile(file){
+    let text='';
+    try{
+      if(/\.(txt|md)$/i.test(file.name)) text=await file.text();
+      else if(/\.pdf$/i.test(file.name)){
+        await ensurePdfjs();
+        const pdf=await window.pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+        let chars=0; const pages=[];
+        for(let p=1;p<=pdf.numPages;p++){
+          const pg=await pdf.getPage(p); const tc=await pg.getTextContent();
+          const s=tc.items.map(i=>i.str).join(' ');
+          chars+=s.replace(/\s/g,'').length; pages.push(s);
+        }
+        if(chars < pdf.numPages*40){
+          const go=await modalConfirm({title:'PDF này là bản scan (ảnh)',
+            message:`File ${pdf.numPages} trang, không có lớp chữ. Sẽ đọc bằng bộ nhận dạng chữ tiếng Việt — mất khoảng ${Math.max(1,Math.ceil(pdf.numPages*0.4))}–${Math.ceil(pdf.numPages)} phút. Bấm Esc để dừng.`,
+            ok:'Đọc bằng OCR', cancel:'Thôi'});
+          if(!go) return;
+          text=(await pdfOcrPages(pdf)).join('\n');
+        } else text=pages.join('\n');
+      } else { toast('Chỉ nhận file .pdf, .txt hoặc .md.'); return; }
+    }catch(e){ toast('Không đọc được file: '+(e&&e.message||e)); return; }
+    const passages=vbSplitPassages(text);
+    if(!passages.length){ toast('Không tách được nội dung từ file này.'); return; }
+    const code=await modalPrompt({title:'Số hiệu văn bản',
+      label:'Ghi đúng số hiệu để khi tra cứu máy nhận ra (VD: 369/QC-HĐTV-TCKT).',
+      value:vbGuessCode(file.name), placeholder:'VD: 369/QC-HĐTV-TCKT', ok:'Lưu'});
+    if(code===null) return;
+    const title=await modalPrompt({title:'Tên văn bản', value:file.name.replace(/\.[^.]+$/,'').replace(/[_]+/g,' ').slice(0,120), ok:'Lưu', allowEmpty:true});
+    if(title===null) return;
+    if(!vbDocs) vbDocs={format:'vbtn-docs', version:1, exportedAt:Date.now(), docs:[]};
+    const i=vbDocs.docs.findIndex(d=> d.code===code);
+    const rec={code, title, passages};
+    if(i>=0) vbDocs.docs[i]=rec; else vbDocs.docs.push(rec);
+    vbDocs.exportedAt=Date.now();
+    await metaSet('vbDocs', vbDocs);
+    vbBuildIndex();
+    toast(`Đã ${i>=0?'cập nhật':'thêm'} “${code}”: ${passages.length} đoạn. Bộ nhớ hiện có ${vbDocs.docs.length} văn bản · ${vbIndex.length} đoạn.`);
+  }
+  function vbExport(){
+    if(!vbDocs || !vbDocs.docs.length){ toast('Bộ nhớ văn bản đang trống.'); return; }
+    const blob=new Blob([JSON.stringify(vbDocs)], {type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download='vanban.json'; a.click();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 3000);
+    toast(`Đã xuất vanban.json: ${vbDocs.docs.length} văn bản · ${vbIndex.length} đoạn.`);
+  }
+
   function vbSplitQuery(raw){
     const lines=String(raw||'').split(/\n+/).map(t=>t.trim()).filter(Boolean);
     const opts=[], qs=[];
@@ -3652,7 +3834,7 @@
   }
   function vbSearch(q, limit){
     if(!vbIndex || !vbIndex.length) return [];
-    const toks=[...new Set(vbTokens(q))];
+    const toks=[...new Set(vbTokens(q).map(vbFix))];
     if(!toks.length) return [];
     const res=[];
     vbIndex.forEach(p=>{
@@ -3672,7 +3854,7 @@
     let ranked=null;
     if(opts.length>=2){
       ranked=opts.map((o,i)=>{
-        const t=[...new Set(vbTokens(o))];
+        const t=[...new Set(vbTokens(o).map(vbFix))];
         if(!t.length) return {i,o,sc:0};
         let hit=0, tot=0;
         t.forEach(w=>{ const wt=vbWeight(w); tot+=wt; if(ctx.includes(w)) hit+=wt; });
@@ -3696,8 +3878,8 @@
         html+='<div class="vb-pick weak">Không đủ căn cứ để chọn đáp án — mời đọc phần trích dưới đây.</div>';
       } else
       html+=`<div class="vb-pick ${chac?'ok':'weak'}">Đáp án có khả năng đúng: <b>${L[top.i]||(top.i+1)}</b> — ${esc(top.o.slice(0,140))}
-        <span class="vb-sc">${Math.round(top.sc*100)}% khớp${chac?'':' · chưa chắc chắn'}</span></div>`;
-      html+='<div class="vb-rank">'+s.ranked.slice(1).map(r=>`<span>${L[r.i]||(r.i+1)}: ${Math.round(r.sc*100)}%</span>`).join('')+'</div>';
+        <span class="vb-sc">${Math.min(100,Math.round(top.sc*100))}% khớp${chac?'':' · chưa chắc chắn'}</span></div>`;
+      html+='<div class="vb-rank">'+s.ranked.slice(1).map(r=>`<span>${L[r.i]||(r.i+1)}: ${Math.min(100,Math.round(r.sc*100))}%</span>`).join('')+'</div>';
     }
     html+='<div class="vb-ev-h">Căn cứ tìm được:</div>';
     s.hits.slice(0,3).forEach(h=>{
@@ -3892,7 +4074,9 @@
     renderOnlineStatus();
     if(!hasLocalData) syncRemote(false);   // 3) chỉ đọc cauhoi.json khi KHÔNG có nguồn kèm file
     await mergeDuplicateSubjects();        // dọn môn trùng tên (nếu máy đã có sẵn dữ liệu cùng tên)
+    await purgeJunkQuestions();            // bỏ hàng đánh số cột (1|2|3|4…) lọt vào như câu hỏi
     await vbLoadSaved();
+    vbSyncShared();                        // tự lấy vanban.json / vanban.js đặt cạnh trang (chạy ngầm)
     renderResults(); refreshShellCounts(); setupMic();
     const so=$('#startsOnly'); if(so) so.onchange=e=>{ startsOnly=e.target.checked; renderResults(); };
   })();
