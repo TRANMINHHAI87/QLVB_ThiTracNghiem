@@ -747,6 +747,8 @@
   .vb-ev{ border-top:1px solid #EADFC0; padding:8px 0 }
   .vb-src{ font-family:var(--mono); font-size:11.5px; font-weight:700; color:var(--brand-700); margin-bottom:3px }
   .vb-tx{ font-size:13.5px; line-height:1.6; color:var(--ink) }
+  .batch-lbl{ font-size:13px; font-weight:700; color:var(--ink-2); margin:4px 0 7px }
+  .batch-lbl span{ font-weight:500; color:var(--ink-3); font-size:12px }
 </style>
 </head>
 <body>
@@ -756,7 +758,7 @@
       <span class="mark" aria-hidden="true"></span>
       <div class="brand-txt">
         <strong>Văn bản &amp; Trắc nghiệm <span id="verBadge" class="ver-badge"></span></strong>
-        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b21.09-G</b></span>
+        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b22.09-A</b></span>
       </div>
     </div>
     <div id="storeWarn" class="store-warn" hidden>
@@ -2472,8 +2474,9 @@
       </div>
       <div class="exam-config">
         <div class="cfg-label">Chọn môn để ${examMode==='exam'?'thi':'ôn'} (có thể chọn nhiều môn để trộn)</div>
-        ${batches.length?`<div class="batch-chips">${['all'].concat(batches).map(b=>`<button class="chip ${(b==='all'? !examBatches.size : examBatches.has(b))?'on':''}" data-batch="${esc(b)}">${b==='all'?`Tất cả đợt (${poolAll.length})`:esc(b)+` (${poolAll.filter(q=>qBatch(q)===b).length})`}</button>`).join('')}</div>`:''}
         ${pickMarkup(shown)}
+        ${batches.length?`<div class="batch-lbl">Chọn đợt <span>(bấm được nhiều đợt cùng lúc)</span></div>
+        <div class="batch-chips">${['all'].concat(batches).map(b=>`<button class="chip ${(b==='all'? !examBatches.size : examBatches.has(b))?'on':''}" data-batch="${esc(b)}">${b==='all'?`Tất cả đợt (${poolAll.length})`:esc(b)+` (${poolAll.filter(q=>qBatch(q)===b).length})`}</button>`).join('')}</div>`:''}
         ${subjects.length-usable.length? `<p class="hint">${subjects.length-usable.length} môn đang đặt “chỉ tra cứu” nên không hiện ở đây.</p>`:''}
         ${noBatch&&examBatches.size? `<p class="hint">${noBatch} câu chưa gán đợt nên không nằm trong đợt đang chọn (vẫn tra cứu được).</p>`:''}
         <div class="pool-line ${selSubjects.size?'':'warn-txt'}">${selSubjects.size? `Đã chọn <b>${pool.length}</b> câu từ ${selSubjects.size} môn (đã bỏ câu trùng)` : 'Chưa chọn môn nào — hãy tích chọn ít nhất một môn ở trên.'}</div>
@@ -2517,7 +2520,13 @@
     area.querySelectorAll('[data-batch]').forEach(b=> b.onclick=()=>{ const v=b.dataset.batch;
       if(v==='all') examBatches.clear(); else if(examBatches.has(v)) examBatches.delete(v); else examBatches.add(v);
       renderExam(); });
-    area.querySelectorAll('.sc-chk').forEach(c=> c.onchange=()=>{ const id=Number(c.dataset.id); if(c.checked) selSubjects.add(id); else selSubjects.delete(id); renderExam(); });
+    area.querySelectorAll('.sc-chk').forEach(c=> c.onchange=async ()=>{
+      const id=Number(c.dataset.id); if(c.checked) selSubjects.add(id); else selSubjects.delete(id);
+      const pl=document.querySelector('.pick-list'); if(pl) pickScroll=pl.scrollTop;
+      const y=window.scrollY;
+      await renderExam();
+      window.scrollTo(0,y);                                            // trang cũng không nhảy
+    });
     wirePick();
     const fxc=$('#swFx'); if(fxc) fxc.onchange=e=> fxOn=e.target.checked;
     const snc=$('#swSnd'); if(snc) snc.onchange=e=>{ sndOn=e.target.checked; if(sndOn) playSnd('correct'); };
@@ -3574,7 +3583,7 @@
     return right? (big?3000:1900) : 2100;
   }
 
-  let pickOpen=false, pickFilter='', pickFocus=false;
+  let pickOpen=false, pickFilter='', pickFocus=false, pickScroll=0;
   function pickMarkup(shown){
     const tot=[...selSubjects].reduce((a,id)=>{ const s=subjects.find(x=>x.id===id); return a+((s&&s.questions.length)||0); },0);
     const q=noAccent(pickFilter);
@@ -3599,8 +3608,10 @@
     </div>`;
   }
   function wirePick(){
+    const pl=document.querySelector('.pick-list');
+    if(pl){ pl.scrollTop=pickScroll; pl.onscroll=()=>{ pickScroll=pl.scrollTop; }; }   // vẽ lại xong vẫn đứng đúng chỗ đang xem
     const pb=$('#pickBtn'); if(pb) pb.onclick=()=>{ pickOpen=!pickOpen; pickFocus=pickOpen; renderExam(); };
-    const ps=$('#pickSearch'); if(ps){ ps.oninput=e=>{ pickFilter=e.target.value; pickFocus=true; renderExam(); };
+    const ps=$('#pickSearch'); if(ps){ ps.oninput=e=>{ pickFilter=e.target.value; pickFocus=true; pickScroll=0; renderExam(); };
       if(pickFocus){ ps.focus(); const v=ps.value; ps.value=''; ps.value=v; pickFocus=false; } }
     const pa=$('#pickAll'); if(pa) pa.onclick=()=>{
       if(selSubjects.size) selSubjects.clear();
