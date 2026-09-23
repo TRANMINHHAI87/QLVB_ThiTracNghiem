@@ -758,7 +758,7 @@
       <span class="mark" aria-hidden="true"></span>
       <div class="brand-txt">
         <strong>Văn bản &amp; Trắc nghiệm <span id="verBadge" class="ver-badge"></span></strong>
-        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b22.09-A</b></span>
+        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b23.09-B</b></span>
       </div>
     </div>
     <div id="storeWarn" class="store-warn" hidden>
@@ -2657,7 +2657,7 @@
     return `<article class="exam-q" id="eq${qi}"><div class="eq-head"><span class="eq-no">Câu ${qi+1}</span></div><p class="eq-text">${esc(q.question)}</p>${examQuestionInner(q,qi)}</article>`;
   }
   /* ---- Máy tính: làm bài thi từng câu một ---- */
-  function examSingleView(){ try{ return window.matchMedia('(min-width:1000px)').matches; }catch(_){ return false; } }
+  function examSingleView(){ return true; }   // một câu một màn cho cả điện thoại lẫn máy tính
   function examGoTo(i, markSkip){
     if(!exam || exam.submitted) return;
     clearTimeout(exam._adv);
@@ -3483,6 +3483,8 @@
   syncStickyOffset();
   window.addEventListener('resize', syncStickyOffset);
   window.addEventListener('orientationchange', syncStickyOffset);
+  // thanh đầu trang cao/thấp thay đổi (hiện nút Quay lại, hiện cảnh báo…) -> đo lại ngay
+  try{ new ResizeObserver(syncStickyOffset).observe(document.querySelector('.topbar')); }catch(e){}
 
   // Lưu ngay khi ứng dụng bị ẩn/đóng để không mất bài đang làm
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='hidden' && exam && !exam.submitted){ clearTimeout(persistTimer); persistExam(); } });
@@ -4119,6 +4121,7 @@
     const t=SHELL_TITLE[v]||SHELL_TITLE.home;
     $('#navTtl').textContent=t[0]; $('#navSub').textContent=t[1];
     if(home) refreshShellCounts();
+    try{ syncStickyOffset(); }catch(e){}
     window.scrollTo(0,0);
   }
   function shellBack(){
