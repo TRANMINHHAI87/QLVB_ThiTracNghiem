@@ -143,9 +143,37 @@
     border-top:1px solid var(--line);
     padding:10px 14px calc(env(safe-area-inset-bottom) + 10px);
   }
-  .selbar-inner{max-width:720px; margin:0 auto; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .selbar-inner{max-width:720px; margin:0 auto; display:flex; flex-direction:column; gap:8px}
+  .sel-top{display:flex; align-items:center; gap:8px}
   .selcount{font-weight:700; font-size:13px; color:var(--brand-700); margin-right:auto}
   .selcount b{font-family:var(--mono)}
+  .sel-size{font-family:var(--mono); font-weight:500; font-size:11.5px; color:var(--ink-3); margin-left:6px}
+  .sel-acts{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px}
+  .sa{appearance:none; cursor:pointer; font:inherit; font-weight:600; font-size:11.5px; line-height:1.2; color:var(--ink);
+    background:var(--card); border:1px solid var(--line); border-radius:10px; padding:7px 3px 6px; min-height:60px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; text-align:center}
+  .sa svg{flex:none}
+  .sa:active{transform:translateY(1px)}
+  .sa:focus-visible{outline:2px solid var(--brand); outline-offset:2px}
+  .sa-primary{background:var(--brand); border-color:var(--brand); color:#fff}
+  .sa-danger{color:var(--red); border-color:#F0CFCF; background:var(--red-tint)}
+  body.sel-on .app{padding-bottom:calc(var(--selbar-h,140px) + 20px)}
+  body.sel-on .toast{bottom:calc(var(--selbar-h,140px) + 12px)}
+  @media (min-width:700px){
+    .selbar-inner{flex-direction:row; align-items:center; flex-wrap:wrap}
+    .sel-top{margin-right:auto}
+    .sel-acts{display:flex; flex-wrap:wrap; justify-content:flex-end}
+    .sa{flex-direction:row; min-height:38px; padding:8px 12px; font-size:13px; gap:7px; border-radius:9px; white-space:nowrap}
+    .sa svg{width:17px; height:17px}
+  }
+  /* danh sách file trong hộp chia sẻ */
+  .share-list{list-style:none; margin:4px 0 2px; padding:0; border:1px solid var(--line); border-radius:10px; max-height:230px; overflow:auto}
+  .share-list li{display:flex; gap:10px; justify-content:space-between; align-items:baseline; padding:8px 10px; border-top:1px solid var(--line-2); font-size:13px}
+  .share-list li:first-child{border-top:0}
+  .share-list li span{min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .share-list li b{flex:none; font-family:var(--mono); font-weight:500; font-size:11.5px; color:var(--ink-3)}
+  .share-list li.more{color:var(--ink-3); font-style:italic}
+  .modal p.msg b{color:var(--ink)}
 
   /* Quiz */
   .quiz-status{
@@ -758,7 +786,7 @@
       <span class="mark" aria-hidden="true"></span>
       <div class="brand-txt">
         <strong>Văn bản &amp; Trắc nghiệm <span id="verBadge" class="ver-badge"></span></strong>
-        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b23.09-B</b></span>
+        <span class="brand-sub">Tra cứu tài liệu &amp; ôn tập trên điện thoại · <b class="build">b25.09-C</b></span>
       </div>
     </div>
     <div id="storeWarn" class="store-warn" hidden>
@@ -957,10 +985,16 @@
 
   <div id="selbar" class="selbar" hidden>
     <div class="selbar-inner">
-      <span class="selcount"><b id="selN">0</b> đã chọn</span>
-      <button class="btn btn-sm btn-ghost" id="clearSel">Bỏ chọn</button>
-      <button class="btn btn-sm" id="addToCat">Thêm vào danh mục</button>
-      <button class="btn btn-sm btn-primary" id="makeCat">Tạo danh mục</button>
+      <div class="sel-top">
+        <span class="selcount"><b id="selN">0</b> đã chọn<span id="selSize" class="sel-size"></span></span>
+        <button class="btn btn-sm btn-ghost" id="clearSel">Bỏ chọn</button>
+      </div>
+      <div class="sel-acts">
+        <button class="sa sa-primary" id="shareSel" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg><span>Chia sẻ</span></button>
+        <button class="sa" id="addToCat" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="m9 13 2 2 4-4"/></svg><span>Thêm vào danh mục</span></button>
+        <button class="sa" id="makeCat" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 10v6M9 13h6"/></svg><span>Tạo danh mục</span></button>
+        <button class="sa sa-danger" id="unlistSel" type="button"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/><path d="M10 11v5M14 11v5"/></svg><span>Xóa khỏi list</span></button>
+      </div>
     </div>
   </div>
 </div>
@@ -1107,25 +1141,35 @@
   }
 
   /* ================= TAB 1: DOCS ================= */
-  let docsQuery='', activeCat='all', selected=new Set();
+  let docsQuery='', activeCat='all', selected=new Set(), docById=new Map();
 
-  async function importFiles(fileList, pdfOnly){
+  // File đã "Xóa khỏi list" được nhớ lại để lần quét thư mục sau KHÔNG tự thêm lại
+  const docKey=f=> (f.name||'')+'\u0000'+(f.size||0);
+  async function hiddenDocs(){ try{ const r=await metaGet('docHidden'); return new Set((r&&r.value)||[]); }catch(e){ return new Set(); } }
+  async function hideDocs(keys){ if(!keys.length) return; const s=await hiddenDocs(); keys.forEach(k=>s.add(k)); await metaSet('docHidden',[...s]); }
+  async function unhideDocs(keys){ const s=await hiddenDocs(); let ch=false; keys.forEach(k=>{ if(s.delete(k)) ch=true; }); if(ch) await metaSet('docHidden',[...s]); }
+
+  async function importFiles(fileList, pdfOnly, opts){
+    opts=opts||{};
     let arr=[...fileList];
     if(pdfOnly) arr=arr.filter(f=> /\.pdf$/i.test(f.name) || f.type==='application/pdf');
-    if(!arr.length) return {added:0, dup:0};
+    if(!arr.length) return {added:0, dup:0, hidden:0};
     if(arr.length>=8) toast(`Đang thêm ${arr.length} tài liệu…`);
     const existing=await filesAll();
     const seen=new Set(existing.map(f=> f.name+'\u0000'+f.size));
-    const recs=[];
+    const hid = opts.folder ? await hiddenDocs() : null;      // quét thư mục: bỏ qua file đã gỡ
+    if(opts.manual) await unhideDocs(arr.map(docKey));        // tự tay thêm lại: cho hiện lại
+    const recs=[]; let hiddenN=0;
     for(const f of arr){
       const key=f.name+'\u0000'+f.size;
       if(seen.has(key)) continue;
       seen.add(key);
+      if(hid && hid.has(key)){ hiddenN++; continue; }
       recs.push({ name:f.name, size:f.size, type:f.type||'', mtime:f.lastModified||0, addedAt:Date.now(), blob:f });
     }
-    const dup=arr.length-recs.length;
+    const dup=arr.length-recs.length-hiddenN;
     if(recs.length) await fileAddMany(recs);   // ghi tất cả trong 1 giao dịch
-    return {added:recs.length, dup};
+    return {added:recs.length, dup, hidden:hiddenN};
   }
 
   /* ---- Liên kết thư mục tự cập nhật ---- */
@@ -1163,7 +1207,7 @@
       await metaSet('folderHandle', handle);
       await metaSet('folderLink', {mode:'fsa', name:handle.name, at:Date.now()});
       const files=await scanHandle(handle);
-      const {added,dup}=await importFiles(files, true);
+      const {added,dup}=await importFiles(files, true, {folder:true});
       toast(`Đã liên kết “${handle.name}”. Thêm ${added} PDF${dup?`, bỏ ${dup} trùng`:''}. Lần sau mở sẽ tự cập nhật.`);
       renderDocs(); renderFolderStatus();
     }catch(e){ toast('Không đọc được thư mục vừa chọn.'); }
@@ -1174,7 +1218,7 @@
     if(!(await fsaPerm(handle, true))){ toast('Cần cấp lại quyền đọc thư mục.'); return; }
     try{
       const files=await scanHandle(handle);
-      const {added,dup}=await importFiles(files, true);
+      const {added,dup}=await importFiles(files, true, {folder:true});
       toast(added? `Đã thêm ${added} tài liệu mới${dup?`, bỏ ${dup} trùng`:''}.` : 'Không có tài liệu mới trong thư mục.');
       renderDocs();
     }catch(e){ toast('Không đọc được thư mục đã liên kết.'); }
@@ -1191,18 +1235,18 @@
     const list=[...e.target.files]; const total=list.length;
     let folderName='';
     if(list[0] && list[0].webkitRelativePath){ folderName=list[0].webkitRelativePath.split('/')[0]||''; }
-    const {added,dup}=await importFiles(e.target.files, true);
+    const {added,dup,hidden}=await importFiles(e.target.files, true, {folder:true});
     e.target.value='';
     if(total){ await metaSet('folderLink', {mode:'picker', name:folderName, at:Date.now()}); renderFolderStatus(); }
-    if(added===0 && dup===0){ toast(total? 'Không tìm thấy PDF trong thư mục này.' : 'Chưa chọn được thư mục.'); return; }
-    toast(`Đã thêm ${added} PDF${dup?`, bỏ ${dup} trùng`:''}.`);
+    if(added===0 && dup===0 && !hidden){ toast(total? 'Không tìm thấy PDF trong thư mục này.' : 'Chưa chọn được thư mục.'); return; }
+    toast(`Đã thêm ${added} PDF${dup?`, bỏ ${dup} trùng`:''}${hidden?`, bỏ qua ${hidden} file đã gỡ`:''}.`);
     renderDocs(); try{ refreshShellCounts(); }catch(e){}
   });
 
   // Thêm thủ công tài liệu khác (.doc, .docx, …)
   $('#docInput').addEventListener('change', async e=>{
-    const {added,dup}=await importFiles(e.target.files, false);
-    e.target.value='';
+    const {added,dup}=await importFiles(e.target.files, false, {manual:true});
+    e.target.value=''; renderFolderStatus();
     if(added===0 && dup===0){ toast('Chưa chọn được tài liệu.'); return; }
     toast(`Đã thêm ${added} tài liệu${dup?`, bỏ ${dup} trùng`:''}.`);
     renderDocs();
@@ -1221,6 +1265,19 @@
       $('#fsRefresh').onclick=()=> $('#folderInput').click();
     }
     $('#fsUnlink').onclick=()=> unlinkFolder();
+    const hid=await hiddenDocs();
+    if(hid.size){
+      const note=el.querySelector('.fs-note');
+      if(note) note.insertAdjacentHTML('beforeend', ` · <button class="link fs-unhide" id="fsUnhide">${hid.size} file đã gỡ — cho hiện lại</button>`);
+      const bt=$('#fsUnhide');
+      if(bt) bt.onclick=async ()=>{
+        const ok=await modalConfirm({title:'Cho hiện lại file đã gỡ?', message:`${hid.size} file bạn đã xóa khỏi list sẽ được thêm lại ở lần quét thư mục tới.`, ok:'Cho hiện lại'});
+        if(!ok) return;
+        await metaSet('docHidden',[]);
+        renderFolderStatus();
+        if(v.mode==='fsa') refreshFolderFSA(); else toast('Bấm “Quét lại” rồi chọn lại thư mục để thêm lại các file này.');
+      };
+    }
   }
   async function autoSyncFolder(){
     try{
@@ -1231,7 +1288,7 @@
           const handle=fh.value;
           if(await fsaPerm(handle, false)){   // chỉ khi đã có quyền sẵn (không bật prompt lúc mở)
             const files=await scanHandle(handle);
-            const {added}=await importFiles(files, true);
+            const {added}=await importFiles(files, true, {folder:true});
             if(added){ renderDocs(); toast(`Tự thêm ${added} tài liệu mới từ “${handle.name}”.`); }
           }
         }
@@ -1246,6 +1303,8 @@
   async function renderDocs(){
     const files=await filesAll();
     const cats=await categoriesAll();
+    docById=new Map(files.map(f=>[f.id,f]));
+    [...selected].forEach(id=>{ if(!docById.has(id)) selected.delete(id); });   // bỏ chọn file không còn nữa
 
     // chips
     const chips=$('#catChips');
@@ -1297,8 +1356,7 @@
         </div>
         <div class="doc-actions">
           <button class="btn btn-sm btn-primary" data-open="${f.id}">Mở</button>
-          <button class="btn btn-sm" data-unlist="${f.id}">Xóa khỏi list</button>
-          <button class="btn btn-sm btn-danger" data-purge="${f.id}">Xóa khỏi máy</button>
+          <button class="btn btn-sm btn-danger" data-unlist="${f.id}">Xóa khỏi list</button>
         </div>
       </div>`;
     }).join('');
@@ -1306,7 +1364,6 @@
     cont.querySelectorAll('[data-sel]').forEach(cb=> cb.onchange=()=>{ const id=Number(cb.getAttribute('data-sel')); cb.checked?selected.add(id):selected.delete(id); updateSelBar(); });
     cont.querySelectorAll('[data-open]').forEach(b=> b.onclick=()=> openFile(Number(b.getAttribute('data-open'))));
     cont.querySelectorAll('[data-unlist]').forEach(b=> b.onclick=()=> removeFromList(Number(b.getAttribute('data-unlist'))));
-    cont.querySelectorAll('[data-purge]').forEach(b=> b.onclick=()=> purgeFromDevice(Number(b.getAttribute('data-purge'))));
 
     updateSelBar();
   }
@@ -1319,24 +1376,22 @@
     setTimeout(()=>URL.revokeObjectURL(url), 60000);
   }
   async function removeFromList(id){
+    const rec=docById.get(id) || await fileGet(id);
     selected.delete(id);
     await fileDelete(id);
+    if(rec) await hideDocs([docKey(rec)]);
     toast('Đã gỡ khỏi danh sách.');
-    renderDocs();
-  }
-  async function purgeFromDevice(id){
-    const ok=await modalConfirm({
-      title:'Xóa khỏi máy?',
-      message:'Vì lý do bảo mật, trình duyệt không thể tự xóa tệp khỏi bộ nhớ điện thoại. Bạn cần mở ứng dụng Tệp / Quản lý tệp để xóa tệp gốc. Bấm “Gỡ khỏi công cụ” để xóa bản lưu trong công cụ này.',
-      ok:'Gỡ khỏi công cụ', danger:true
-    });
-    if(ok){ await removeFromList(id); }
+    renderDocs(); renderFolderStatus();
   }
 
+  function docsVisible(){ const p=$('#tab-docs'); return !!p && p.classList.contains('is-active') && p.style.display!=='none'; }
   function updateSelBar(){
     const bar=$('#selbar');
     $('#selN').textContent=selected.size;
-    bar.hidden = selected.size===0;
+    let bytes=0; selected.forEach(id=>{ const r=docById.get(id); if(r) bytes+=r.size||0; });
+    const sz=$('#selSize'); if(sz) sz.textContent = selected.size? '· '+fmtSize(bytes) : '';
+    bar.hidden = selected.size===0 || !docsVisible();
+    document.body.classList.toggle('sel-on', !bar.hidden);
     // select-all label
     const boxes=[...document.querySelectorAll('#docList [data-sel]')];
     const allChecked = boxes.length>0 && boxes.every(b=>b.checked);
@@ -1349,6 +1404,172 @@
     updateSelBar();
   };
   $('#clearSel').onclick=()=>{ selected.clear(); document.querySelectorAll('#docList [data-sel]').forEach(b=>b.checked=false); updateSelBar(); };
+  // chiều cao thanh chọn -> chừa chỗ cuối danh sách để file cuối không bị che
+  try{ new ResizeObserver(()=> document.documentElement.style.setProperty('--selbar-h', $('#selbar').offsetHeight+'px')).observe($('#selbar')); }catch(e){}
+
+  /* ---- Xóa hàng loạt các file đã tích ---- */
+  async function fileDeleteMany(ids){
+    const set=new Set(ids);
+    if(memMode){ ids.forEach(id=> mem.files.delete(id)); }
+    else await new Promise((resolve,reject)=>{
+      const tx=idb.transaction('files','readwrite'), os=tx.objectStore('files');
+      ids.forEach(id=> os.delete(id));
+      tx.oncomplete=()=>resolve(); tx.onerror=()=>reject(tx.error); tx.onabort=()=>reject(tx.error);
+    });
+    const cats=await categoriesAll();
+    for(const c of cats){ if(c.fileIds && c.fileIds.some(x=>set.has(x))){ c.fileIds=c.fileIds.filter(x=>!set.has(x)); await categoryPut(c); } }
+  }
+  async function removeSelected(ids){
+    const keys=ids.map(id=>docById.get(id)).filter(Boolean).map(docKey);
+    await fileDeleteMany(ids);
+    await hideDocs(keys);
+    ids.forEach(id=> selected.delete(id));
+    await renderDocs(); renderFolderStatus(); try{ refreshShellCounts(); }catch(e){}
+  }
+  $('#unlistSel').onclick=async ()=>{
+    const ids=[...selected]; if(!ids.length) return;
+    const ok=await modalConfirm({title:`Xóa ${ids.length} văn bản khỏi list?`,
+      message:'Gỡ khỏi danh sách và xóa bản lưu trong công cụ. File gốc trên máy vẫn còn (trình duyệt không được phép xóa file gốc — muốn xóa hẳn thì dùng ứng dụng Quản lý tệp). Lần quét thư mục sau cũng sẽ không tự thêm lại.',
+      ok:`Xóa khỏi list (${ids.length})`, danger:true});
+    if(!ok) return;
+    await removeSelected(ids);
+    toast(`Đã gỡ ${ids.length} văn bản khỏi danh sách.`);
+  };
+
+  /* ---- Chia sẻ file đã chọn sang Zalo, Mail… qua bảng chia sẻ của máy ---- */
+  const SHARE_MAX_N=10, SHARE_MAX_B=50*1024*1024;     // giới hạn mỗi lần chia sẻ của Chrome
+  const MIME_BY_EXT={pdf:'application/pdf', doc:'application/msword',
+    docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ppt:'application/vnd.ms-powerpoint', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    txt:'text/plain', rtf:'application/rtf', odt:'application/vnd.oasis.opendocument.text',
+    ods:'application/vnd.oasis.opendocument.spreadsheet', odp:'application/vnd.oasis.opendocument.presentation',
+    jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png'};
+  function isMobileUA(){ const ua=navigator.userAgent||''; return /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints>1); }
+  function toShareFile(r){
+    const ext=((r.name||'').split('.').pop()||'').toLowerCase();
+    const type=r.type || (r.blob && r.blob.type) || MIME_BY_EXT[ext] || 'application/octet-stream';
+    try{ return new File([r.blob], r.name, {type, lastModified:r.mtime||Date.now()}); }catch(e){ return r.blob; }
+  }
+  function shareSupport(){
+    const ff=/Firefox|FxiOS/i.test(navigator.userAgent||'');
+    if(typeof navigator.share!=='function' || typeof navigator.canShare!=='function') return {ok:false, why: ff?'firefox':'noapi'};
+    let ok=false;
+    try{ ok=navigator.canShare({files:[new File(['%PDF-1.4\n'], 'kiem-tra.pdf', {type:'application/pdf'})]}); }catch(e){}
+    return ok? {ok:true} : {ok:false, why: ff?'firefox':'nofiles'};
+  }
+  function planShare(files){
+    const ok=[], blocked=[], tooBig=[];
+    files.forEach(f=>{
+      let can=false; try{ can=navigator.canShare({files:[f]}); }catch(e){}
+      if(!can) blocked.push(f); else if(f.size>SHARE_MAX_B) tooBig.push(f); else ok.push(f);
+    });
+    const batches=[]; let cur=[], sz=0;
+    ok.forEach(f=>{
+      if(cur.length && (cur.length>=SHARE_MAX_N || sz+f.size>SHARE_MAX_B)){ batches.push(cur); cur=[]; sz=0; }
+      cur.push(f); sz+=f.size;
+    });
+    if(cur.length) batches.push(cur);
+    return {batches, blocked, tooBig};
+  }
+  const shareTitle=fs=> fs.length===1? fs[0].name : `${fs.length} văn bản`;
+  const extsOf=fs=> [...new Set(fs.map(f=> '.'+(((f.name||'').split('.').pop())||'').toLowerCase()))].join(', ');
+  async function downloadFiles(files){
+    if(!files || !files.length) return;
+    toast(files.length>1? `Đang tải ${files.length} file về máy… Trình duyệt hỏi “tải nhiều tệp” thì bấm Cho phép.` : 'Đang tải file về máy…');
+    for(let i=0;i<files.length;i++){
+      const f=files[i], url=URL.createObjectURL(f);
+      const a=document.createElement('a'); a.href=url; a.download=f.name||('van-ban-'+(i+1)); a.rel='noopener';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=> URL.revokeObjectURL(url), 60000);
+      if(i<files.length-1) await new Promise(r=> setTimeout(r, 450));
+    }
+  }
+  // Hộp chia sẻ: nút "Chia sẻ" gọi bảng chia sẻ NGAY trong cú bấm (trình duyệt bắt buộc vậy)
+  function shareModal({title, lines=[], files=[], shareLabel='Chia sẻ', canShare=false, dlFiles=null}){
+    return new Promise(res=>{
+      overlay._onCancel=()=>res('dismiss');
+      const list = files.slice(0,6).map(f=>`<li><span>${esc(f.name)}</span><b>${fmtSize(f.size)}</b></li>`).join('')
+                 + (files.length>6? `<li class="more">+ ${files.length-6} file khác</li>` : '');
+      modalEl.innerHTML=`<h3>${esc(title)}</h3>${lines.map(l=>`<p class="msg">${l}</p>`).join('')}
+        ${files.length? `<ul class="share-list">${list}</ul>` : ''}
+        <div class="actions"><button class="btn btn-ghost" data-cancel>Đóng</button>
+          ${dlFiles? `<button class="btn" data-dl>Tải về máy</button>` : ''}
+          ${canShare? `<button class="btn btn-primary" data-share>${esc(shareLabel)}</button>` : ''}</div>`;
+      overlay.hidden=false;
+      modalEl.querySelector('[data-cancel]').onclick=()=>{ closeModal(); res('dismiss'); };
+      const dl=modalEl.querySelector('[data-dl]');
+      if(dl) dl.onclick=()=>{ closeModal(); downloadFiles(dlFiles); res('download'); };
+      const sh=modalEl.querySelector('[data-share]');
+      if(sh) sh.onclick=()=>{
+        let p;
+        try{ p=navigator.share({files, title:shareTitle(files)}); }
+        catch(e){ closeModal(); res(e||new Error('share')); return; }
+        closeModal();
+        Promise.resolve(p).then(()=>res('ok'), e=> res(e && e.name==='AbortError'? 'cancel' : (e||new Error('share'))));
+      };
+    });
+  }
+  function shareFallback(files, why, err){
+    const how='Mở trang bằng <b>Chrome</b>, <b>Edge</b> hoặc <b>Safari</b> để gửi thẳng sang Zalo, Mail…, hoặc tải file về máy rồi gửi thủ công.';
+    const msg = why==='firefox' ? 'Firefox chưa hỗ trợ gửi file sang ứng dụng khác. '+how
+              : why==='error'   ? `Không mở được bảng chia sẻ${err && err.message? ' ('+esc(err.message)+')' : ''}. Bạn có thể tải file về máy rồi gửi thủ công.`
+              : 'Trình duyệt này chưa hỗ trợ gửi file sang ứng dụng khác. '+how;
+    return shareModal({title:'Chưa chia sẻ trực tiếp được', lines:[msg], files, dlFiles:files});
+  }
+  function shareSelected(){
+    const recs=[...selected].map(id=>docById.get(id)).filter(r=> r && r.blob);
+    if(!recs.length){ toast('Chưa chọn file nào.'); return; }
+    const files=recs.map(toShareFile);
+    const sup=shareSupport();
+    if(!sup.ok){ shareFallback(files, sup.why); return; }
+    const plan=planShare(files);
+    const mobile=isMobileUA();
+    if(mobile && plan.batches.length===1 && !plan.blocked.length && !plan.tooBig.length){
+      const b=plan.batches[0]; let p;
+      try{ p=navigator.share({files:b, title:shareTitle(b)}); }      // điện thoại: một chạm là mở bảng chia sẻ
+      catch(e){ shareFallback(files,'error',e); return; }
+      Promise.resolve(p).then(()=> toast(`Đã chuyển ${b.length} file sang ứng dụng bạn chọn.`),
+        e=>{ if(!(e && e.name==='AbortError')) shareFallback(files,'error',e); });
+      return;
+    }
+    runSharePlan(files, plan, mobile);
+  }
+  async function runSharePlan(files, plan, mobile){
+    const n=plan.batches.length, left=[...plan.blocked, ...plan.tooBig];
+    if(!n){
+      const why=[];
+      if(plan.blocked.length) why.push(`${plan.blocked.length} file ${esc(extsOf(plan.blocked))} trình duyệt không cho gửi qua bảng chia sẻ`);
+      if(plan.tooBig.length) why.push(`${plan.tooBig.length} file lớn hơn 50 MB`);
+      await shareModal({title:'Không gửi qua bảng chia sẻ được', lines:[`Lý do: ${why.join('; ')}. Hãy tải về máy rồi gửi thủ công (Zalo: bấm đính kèm → chọn tệp).`], files:left, dlFiles:left});
+      return;
+    }
+    const notes=[];
+    if(n>1) notes.push(`Mỗi lần chỉ gửi được tối đa <b>${SHARE_MAX_N} file hoặc 50 MB</b>, nên chia làm <b>${n} đợt</b>. Gửi xong đợt này, bấm tiếp đợt sau.`);
+    if(plan.blocked.length) notes.push(`<b>${plan.blocked.length} file</b> (${esc(extsOf(plan.blocked))}) trình duyệt không cho gửi qua bảng chia sẻ — sẽ có nút tải về ở cuối.`);
+    if(plan.tooBig.length) notes.push(`<b>${plan.tooBig.length} file</b> lớn hơn 50 MB, không gửi qua bảng chia sẻ được — sẽ có nút tải về ở cuối.`);
+    if(!mobile) notes.push('Trên máy tính, bấm <b>Tải về máy</b> nếu muốn kéo thả file vào Zalo hoặc đính kèm mail.');
+    let sent=0, stop=false;
+    for(let i=0;i<n && !stop;i++){
+      const b=plan.batches[i];
+      const r=await shareModal({
+        title: n>1? `Chia sẻ đợt ${i+1}/${n} · ${b.length} file` : `Chia sẻ ${b.length} file`,
+        lines: i===0? notes : [`Đã gửi ${sent} file. Bấm để gửi tiếp ${b.length} file.`],
+        files:b, canShare:true, shareLabel: n>1? `Gửi đợt ${i+1}` : 'Chia sẻ',
+        dlFiles: (i===0 && !mobile)? files : null });
+      if(r==='ok'){ sent+=b.length; continue; }
+      stop=true;
+      if(r && typeof r==='object'){ shareFallback(files,'error',r); return; }
+      if(r==='download') return;                           // đã tải hết về máy
+    }
+    if(sent) toast(`Đã chuyển ${sent} file sang ứng dụng bạn chọn.`);
+    if(!stop && left.length){
+      await shareModal({title:`Còn ${left.length} file chưa gửi được`,
+        lines:['Các file này không đi qua bảng chia sẻ được. Tải về máy rồi gửi thủ công (Zalo: bấm đính kèm → chọn tệp).'],
+        files:left, dlFiles:left});
+    }
+  }
+  $('#shareSel').onclick=()=> shareSelected();
 
   $('#makeCat').onclick=async ()=>{
     if(!selected.size) return;
@@ -4122,6 +4343,7 @@
     $('#navTtl').textContent=t[0]; $('#navSub').textContent=t[1];
     if(home) refreshShellCounts();
     try{ syncStickyOffset(); }catch(e){}
+    try{ updateSelBar(); }catch(e){}     // rời trang Văn bản thì ẩn thanh chọn
     window.scrollTo(0,0);
   }
   function shellBack(){
@@ -4160,7 +4382,7 @@
     t.classList.add('is-active');
     const id=t.getAttribute('data-tab');
     $('#tab-'+id).classList.add('is-active');
-    $('#selbar').hidden = !(id==='docs' && selected.size>0);
+    try{ updateSelBar(); }catch(e){}
   });
 
   /* ================= Init ================= */
